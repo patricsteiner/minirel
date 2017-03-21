@@ -22,7 +22,7 @@ void writefile(char *fname)
     int fd,pagenum;
     char *buf;
     int error;
-
+    
     /* open file1, and allocate a few pages in there */
     if ((fd=PF_OpenFile(fname))<0){
 	PF_PrintError("open file1");
@@ -34,7 +34,7 @@ void writefile(char *fname)
 	if ((error = PF_AllocPage(fd,&pagenum,&buf))!= PFE_OK){
 printf("PF_AllocPage fails (i=%d)\n",i);
 	    PF_PrintError("first buffer\n");
-	    exit(1);
+	   exit(1);
 	}
 	memcpy(buf, (char *)&i, sizeof(int));
 	/*((int*)buf)[0] = i;*/
