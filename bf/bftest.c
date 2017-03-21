@@ -7,7 +7,6 @@
 #include <sys/stat.h>
 #include "minirel.h"
 #include "bf.h"
-#include "buf.h"
 
 
 /*
