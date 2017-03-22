@@ -1,4 +1,4 @@
-#include "minrel.h"
+#include "minirel.h"
 
 typedef struct BFhash_entry {
   struct BFhash_entry *nextentry;     /* next hash table element or NULL */
@@ -14,14 +14,14 @@ typedef struct Hashtable {
 } Hashtable;
 
 /*
- * Uses x to generate hashcode.
+ * Uses entry to generate hashcode.
  */
-int ht_hashcode(Hashtable* ht, x);
+int ht_hashcode(Hashtable* ht, BFhash_entry* entry);
 
 /*
  * Initializes an empty hashtable with given size.
  */
-int ht_init(Hashtable* ht, int size);
+Hashtable* ht_init(int size);
 
 /*
  * Adds entry to hashtable.
