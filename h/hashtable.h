@@ -8,35 +8,48 @@ typedef struct BFhash_entry {
   struct BFpage *bpage;               /* ptr to buffer holding this page */
 } BFhash_entry;
 
+/* TODO: move this struct away */
+typedef struct BFpage {
+  PFpage         fpage;       /* page data from the file                 */
+  struct BFpage  *nextpage;   /* next in the linked list of buffer pages */
+  struct BFpage  *prevpage;   /* prev in the linked list of buffer pages */
+  bool_t         dirty;       /* TRUE if page is dirty                   */
+  short          count;       /* pin count associated with the page      */
+  int            pageNum;     /* page number of this page                */
+  int            fd;          /* PF file descriptor of this page         */
+} BFpage;
+
+
+
 typedef struct Hashtable {
-	unsigned int size;
+	size_t size;
 	BFhash_entry** entries;
 } Hashtable;
 
 /*
  * Uses entry to generate hashcode.
  */
-int ht_hashcode(Hashtable* ht, BFhash_entry* entry);
+int ht_hashcode(Hashtable* ht, int fd, int pageNum);
 
 /*
  * Initializes an empty hashtable with given size.
  */
-Hashtable* ht_init(int size);
+Hashtable* ht_init(size_t size);
 
 /*
  * Adds entry to hashtable.
  */
-int ht_add(Hashtable* ht, BFhash_entry* entry);
+int ht_add(Hashtable* ht, BFpage* page);
 
 /*
  * Removes entry from hashtable.
  */
-int ht_remove(Hashtable* ht, BFhash_entry* entry);
+int ht_remove(Hashtable* ht, int fd, int pageNum);
 
 /*
  * Retrieves the entry with given hashcode.
  */
-BFhash_entry* ht_get(Hashtable* ht, BFhash_entry* entry);
+BFhash_entry* ht_get(Hashtable* ht, int fd, int pageNum);
 
 /*
  * Frees all the allocated memory.

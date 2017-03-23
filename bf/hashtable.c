@@ -2,21 +2,22 @@
 #include <stdlib.h>
 #include "hashtable.h"
 
+/* TODO:
+	 include header with BFpage struct instead of having it here in own header
+ */
+
+
+
+
+
 int main() {
+	BFhash_entry* ff;
 	Hashtable* ht = ht_init(2);
-	BFhash_entry* e = malloc(sizeof(BFhash_entry));
-	BFhash_entry* f = malloc(sizeof(BFhash_entry));
-	BFhash_entry* g = malloc(sizeof(BFhash_entry));
-	BFhash_entry* h = malloc(sizeof(BFhash_entry));
-	BFhash_entry* i = malloc(sizeof(BFhash_entry));
-	e->nextentry = NULL;
-	f->nextentry = NULL;
-	g->nextentry = NULL;
-	h->nextentry = NULL;
-	e->preventry = NULL;
-	f->preventry = NULL;
-	g->preventry = NULL;
-	h->preventry = NULL;
+	BFpage* e = malloc(sizeof(BFpage));
+	BFpage* f = malloc(sizeof(BFpage));
+	BFpage* g = malloc(sizeof(BFpage));
+	BFpage* h = malloc(sizeof(BFpage));
+	BFpage* i = malloc(sizeof(BFpage));
 	e->fd = 88;
 	e->pageNum = 33;
 	f->fd=22;
@@ -34,11 +35,12 @@ int main() {
 	ht_add(ht, i);
 
 	ht_print(ht);
-	BFhash_entry* ff = ht_get(ht, e);
+	
+	ff = ht_get(ht, 88,33);
 	printf("pageNum of ff=e: %d\n", ff->pageNum);
-	ht_remove(ht, h);
-	ht_remove(ht, f);
-	ht_remove(ht, e);
+	ht_remove(ht, 22,123);
+	/*ht_remove(ht, 88,33);*/
+	ht_remove(ht, 777,998);
 	ht_print(ht);
 	ht_free(ht);
 	ht_print(ht);
@@ -49,18 +51,18 @@ int main() {
  * universal hashing is used: h(x) = (ax+b) mod p mod m,
  * whereas a = 123, b = 87, p = 31, m = ht->size and x = fd*pageNum.
  */
-int ht_hashcode(Hashtable* ht, BFhash_entry* entry) {
-	return (123 * entry->fd * entry->pageNum + 87) % 31 % ht->size;
+int ht_hashcode(Hashtable* ht, int fd, int pageNum) {
+	return (123 * fd * pageNum + 87) % 31 % ht->size;
 }
 
 /*
  * initializes an empty hashtable with given size.
  */
-Hashtable* ht_init(int size) {
+Hashtable* ht_init(size_t size) {
 	Hashtable* ht = malloc(sizeof(Hashtable));
 	ht->size = size;
-	ht->entries = malloc(sizeof(BFhash_entry*) * size); // allocate memory for all entry pointers
-	int i;
+	ht->entries = malloc(sizeof(BFhash_entry*) * size); /* allocate memory for all entry pointers */
+	size_t i;
 	for (i = 0; i < size; i++) {
 		ht->entries[i] = NULL;
 	}
@@ -68,26 +70,32 @@ Hashtable* ht_init(int size) {
 }
 
 /*
- * Adds entry to hashtable.
+ * Adds a page to hashtable.
  */
-int ht_add(Hashtable* ht, BFhash_entry* entry) {
-	int hc = ht_hashcode(ht, entry);
-	BFhash_entry* e = ht->entries[hc];
-	if (ht_get(ht, entry) != NULL) {
-		return NULL; // entry already in hashtable
+int ht_add(Hashtable* ht, BFpage* page) {
+	int hc = ht_hashcode(ht, page->fd, page->pageNum);
+	if (ht_get(ht, page->fd, page->pageNum) != NULL) {
+		return NULL; /* entry already in hashtable */
 	}
-	else if (e == NULL) {
-		ht->entries[hc] = entry;
-		entry->preventry = NULL;
-		entry->nextentry = NULL;
-	}
-	else { // we have to iterate to last place of this bucket
-		while (e->nextentry != NULL) {
-			e = e->nextentry;
+	else { /* entry needs to be created and inserted */
+		BFhash_entry* newEntry = malloc(sizeof(BFhash_entry));
+		newEntry->fd = page->fd;
+		newEntry->pageNum = page->pageNum;
+		newEntry->bpage = page;
+		BFhash_entry* entry = ht->entries[hc];
+		if (entry == NULL) { /* bucket is empty, insert it right here */
+			ht->entries[hc] = newEntry;
+			newEntry->preventry = NULL;
+			newEntry->nextentry = NULL;
 		}
-		entry->preventry = e;
-		e->nextentry = entry;
-		entry->nextentry = NULL;
+		else { /* we have to iterate to last place of this bucket */
+			while (entry->nextentry != NULL) {
+				entry = entry->nextentry;
+			}
+			newEntry->preventry = entry;
+			entry->nextentry = newEntry;
+			newEntry->nextentry = NULL;
+		}
 	}
 	return 0;
 }
@@ -95,47 +103,47 @@ int ht_add(Hashtable* ht, BFhash_entry* entry) {
 /*
  * Removes entry from hashtable.
  */
-int ht_remove(Hashtable* ht, BFhash_entry* entry) {
-	int hc = ht_hashcode(ht, entry);
-	BFhash_entry* e = ht_get(ht, entry);
-	if (e == NULL) return -1; // not found
+int ht_remove(Hashtable* ht, int fd, int pageNum) {
+	int hc = ht_hashcode(ht, fd, pageNum);
+	BFhash_entry* e = ht_get(ht, fd, pageNum);
+	if (e == NULL) return -1; /* not found */
 	BFhash_entry* prev = e->preventry;
 	BFhash_entry* next = e->nextentry;
-	if (prev != NULL && next != NULL) { // between two entries
+	if (prev != NULL && next != NULL) { /* between two entries */
 		prev->nextentry = next;
 		next->preventry = prev;
 	} 
-	else if (prev != NULL && next == NULL) { // when last entry in bucket
+	else if (prev != NULL && next == NULL) { /* when last entry in bucket */
 		prev->nextentry = NULL;
 	}
-	else if (prev == NULL && next != NULL) { // when first entry in bucket
+	else if (prev == NULL && next != NULL) { /* when first entry in bucket */
 		ht->entries[hc] = next;
 	}
-	else { // when only entry in bucket
+	else { /* when only entry in bucket */
 		ht->entries[hc] = NULL;
 	}
 	free(e);
 	return 0;
 }
 
-BFhash_entry* ht_get(Hashtable* ht, BFhash_entry* entry) {
-	int hc = ht_hashcode(ht, entry);
+BFhash_entry* ht_get(Hashtable* ht, int fd, int pageNum) {
+	int hc = ht_hashcode(ht, fd, pageNum);
 	BFhash_entry* e = ht->entries[hc];
 	if (e == NULL) {
 		return NULL;
 	}
-	while (!(e->fd == entry->fd && e->pageNum == entry->pageNum)) {
+	while (!(e->fd == fd && e->pageNum == pageNum)) {
 		e = e->nextentry;
-		if (e == NULL) return NULL; // entry not found
+		if (e == NULL) return NULL; /* entry not found */
 	}
 	return e;
 }
 
 /*
- * Frees all the allocated memory. TODO
+ * Frees all the allocated memory (all hashtable entries and the hashtable itself).
  */
 int ht_free(Hashtable* ht) {
-	int i;
+	size_t i;
 	for (i = 0; i < ht->size; i++) {
 		BFhash_entry* e = ht->entries[i];
 		BFhash_entry* tmp;
@@ -143,7 +151,6 @@ int ht_free(Hashtable* ht) {
 			tmp = e;
 			e = e->nextentry;
 			free(tmp);
-			printf("freed 1\n"); //TODO
 		}
 		ht->entries[i] = NULL;
 	}
@@ -151,11 +158,11 @@ int ht_free(Hashtable* ht) {
 }
 
 void ht_print(Hashtable* ht) {
-	int i;
+	size_t i;
 	for (i = 0; i < ht->size; i++) {
 		BFhash_entry* e = ht->entries[i];
 		while (e != NULL) {
-			printf("entry %d: fd %d, pagenum %d\n", i, e->fd, e->pageNum);
+			printf("bucket %d: fd %d, pagenum %d\n", i, e->fd, e->pageNum);
 			e = e->nextentry;
 		}
 	}
