@@ -145,7 +145,9 @@ int ht_free(Hashtable* ht) {
 			free(tmp);
 			printf("freed 1\n"); //TODO
 		}
+		ht->entries[i] = NULL;
 	}
+	free(ht);
 }
 
 void ht_print(Hashtable* ht) {
