@@ -71,6 +71,7 @@ Hashtable* ht_init(size_t size) {
 
 /*
  * Adds a page to hashtable.
+ * return 0
  */
 int ht_add(Hashtable* ht, BFpage* page) {
 	int hc = ht_hashcode(ht, page->fd, page->pageNum);

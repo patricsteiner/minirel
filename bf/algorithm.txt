@@ -1,0 +1,27 @@
+BF_GetBuf(BFreq bq, PFpage **fpage)
+	if bufferrequest file is in the LRU list (with the hashtable)
+		increment the pincount by 1
+		the page become the MRU
+	else
+		if there are still some freespace in the lru
+			get one free BFpage from the Freelist
+			add it to the LRU and to the hashtable
+		if no more freespace
+			find a victim in the lru list and if this victim is dirty, flush it (what if there are no victims ? how to flush?)
+			remove also from the hashtable
+			give it back to the freelist
+			**go to the previous cond
+		once we have the BFpage into the LRU
+			file page is read into the bufferpage
+			pin count set to one
+			dirty flag set to false
+			good entry
+			the page become the most recently used (a verifier si )
+			
+
+extract from the docs : 
+Then, the file page is read into the buffer page, its pin count is set to one, and its dirty flag is set to FALSE, and other appropriate fields of the buffer entry are set accordingly. In both the cases, the page becomes the most recently used. This function returns BFE_OK if the operation is successful, an error condition otherwise.			
+
+
+need : freespace available in the lru? same questions as : freespace available in freelist
+function Most recently used in lru.c

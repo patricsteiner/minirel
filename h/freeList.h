@@ -29,6 +29,7 @@ Freelist* fl_init(int max_size);
 /*
  * Returns a pointer toward a free BFpage and unlink it from the fl
  * its actually remove the first el 
+ * if no more elem, return null
  */
 BFpage* fl_give_one(Freelist* fl);
 

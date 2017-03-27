@@ -48,6 +48,7 @@ int ht_remove(Hashtable* ht, int fd, int pageNum);
 
 /*
  * Retrieves the entry with given hashcode.
+ * Return NULL if no entry
  */
 BFhash_entry* ht_get(Hashtable* ht, int fd, int pageNum);
 

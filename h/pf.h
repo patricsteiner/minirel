@@ -29,21 +29,21 @@ int  PF_UnpinPage	(int fd, int pagenum, int dirty);
  * PF-layer error codes
  */
 #define PFE_OK			0
-#define PFE_INVALIDPAGE		(-1)
-#define PFE_PAGEFREE		(-2)
-#define	PFE_FTABFULL		(-3)
+#define PFE_INVALIDPAGE	(-1)
+#define PFE_PAGEFREE	(-2)
+#define	PFE_FTABFULL	(-3)
 #define PFE_FD			(-4)
 #define PFE_EOF			(-5)
-#define PFE_FILEOPEN		(-6)
-#define PFE_FILENOTOPEN		(-7)
+#define PFE_FILEOPEN	(-6)
+#define PFE_FILENOTOPEN	(-7)
 #define PFE_NOUSERS		(-8)
-
+#define PFE_GETBUF		(-9)
 /*
  * error in UNIX system call or library routine
  */
 #define PFE_HDRREAD		(-97)
-#define PFE_HDRWRITE		(-98)
-#define PFE_MSGERR              (-99)
+#define PFE_HDRWRITE	(-98)
+#define PFE_MSGERR      (-99)
 #define PFE_UNIX		(-100)
 
 /*

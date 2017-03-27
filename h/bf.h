@@ -1,5 +1,3 @@
-
-
 #ifndef __BF_H__
 #define __BF_H__
 

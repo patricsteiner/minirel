@@ -25,7 +25,7 @@ int main(){
 	fl_free(fl);
 }
 
-Freelist *fl_init(int max_size){
+Freelist* fl_init(int max_size){
 	int i;
 	BFpage* newPage;
 	BFpage* prev;
@@ -70,6 +70,7 @@ BFpage* fl_give_one(Freelist* fl){
 		return res;
 	}
 }
+
 
 int fl_add(Freelist* fl, BFpage* bpage){
 	if(fl == NULL || bpage == NULL){exit(EXIT_FAILURE);}
