@@ -14,6 +14,7 @@ Freelist* fl;
 LRU* lru;
 Hashtable* ht;
 
+
 /*
  * Init the BF layer
  * Creates all the buffer entries and add them to the freelist
@@ -114,3 +115,4 @@ int BF_FlushBuf(int fd){
  * Dev : Paul
  */
 void BF_ShowBuf(void){}
+
