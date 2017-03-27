@@ -1,3 +1,5 @@
+
+
 #ifndef __BF_H__
 #define __BF_H__
 
@@ -14,6 +16,7 @@
  * size of BF hash table
  */
 #define BF_HASH_TBL_SIZE 20
+
 
 /*
  * prototypes for BF-layer functions
@@ -34,6 +37,8 @@ void BF_ShowBuf(void);
 #define BFE_NOBUF		(-2)
 #define BFE_PAGEFIXED		(-3)
 #define BFE_PAGEUNFIXED		(-4)
+#define BFE_NOVICTIM            (-5)
+#define BFE_EMPTY               (-6)
 
 #define BFE_PAGEINBUF		(-50)
 #define BFE_PAGENOTINBUF	(-51)

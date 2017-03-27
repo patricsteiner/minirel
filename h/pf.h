@@ -5,11 +5,11 @@
  * pf.h: external interface definition for the PF layer
  ****************************************************************************/
 
- /*
+/*
  * size of open file table
  */
 #define PF_FTAB_SIZE	20
-
+	
 /*
  * prototypes for PF-layer functions
  */
