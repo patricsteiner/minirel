@@ -100,5 +100,7 @@ typedef struct _buffer_request_control {
     bool_t      dirty;                  /* TRUE if page is dirty */
 } BFreq;
 
+
+
 #endif
 

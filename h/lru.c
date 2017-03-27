@@ -15,8 +15,10 @@ LRU* lru_init(){
 }
 
 
+/**********************************************************************************************/
+/* lru_add add the given page in parameters                                                   */
+/**********************************************************************************************/
 
-/* lru_add add the given page in parameters */
 	
 int lru_add(LRU* lru, BFpage *new_BFpage){
 	//this BFpage become the most recently used, consequently it is the head of the LRU list
@@ -38,7 +40,10 @@ int lru_add(LRU* lru, BFpage *new_BFpage){
 
 
 
-/* lru_find return true if the page is in lru_list */ 
+/**********************************************************************************************/
+/* lru_find: return true if the page is in lru_list                                            */
+/**********************************************************************************************/
+ 
 
 char lru_find(LRU* lru, BFpage *page){ 
 
@@ -55,8 +60,9 @@ char lru_find(LRU* lru, BFpage *page){
 
 
 
-
-/* chooses a victim (last recently used page with pin 0) and removes it   */
+/**********************************************************************************************/
+/* lru_remove: chooses a victim (last recently used page with pin 0) and removes it           */
+/**********************************************************************************************/
 
 int lru_remove(LRU* lru,BFpage** victim){
 	if (lru->tail==NULL) return BFE_EMPTY; //empty list case
