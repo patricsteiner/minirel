@@ -1,7 +1,6 @@
 BF_GetBuf(BFreq bq, PFpage **fpage)
 	if bufferrequest file is in the LRU list (with the hashtable)
 		increment the pincount by 1
-		the page become the MRU
 	else
 		if there are still some freespace in the lru
 			get one free BFpage from the Freelist
@@ -16,7 +15,8 @@ BF_GetBuf(BFreq bq, PFpage **fpage)
 			pin count set to one
 			dirty flag set to false
 			good entry
-			the page become the most recently used (a verifier si )
+
+	the page become the most recently used (a verifier si )
 			
 
 extract from the docs : 
