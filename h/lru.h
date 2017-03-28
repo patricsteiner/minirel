@@ -30,6 +30,11 @@ char lru_find(LRU* lru, BFpage *page);
 BFpage* LRU_remove(LRU* lru);
 
 /*
+ * lru_print: print status of LRU, number of pages, and id of pages    
+ */
+void lru_print(LRU* lru);
+
+/*
  * Frees the allocated memory.
  */
 int lru_free(LRU* lru);

@@ -1,6 +1,7 @@
-# Makefile for BF layer
+		# Makefile for BF layer
+		#for widows use \ in INCDIR
 LIB	= bf
-INCDIR	= ${MINIREL_HOME}/h
+INCDIR	= ${MINIREL_HOME}\h
 INCS	= 
 SRCS	= 
 TESTS	= bftest.c
@@ -16,10 +17,13 @@ CFLAGS	= -g -ansi -pedantic
 
 all: lib${LIB}.a ${LIB}test
 
+freelist:
+	$(CC) $(CFLAGS) -o freelist -I ..\h
+
 ${LIB}test: ${LIB}test.o lib${LIB}.a
 	$(CC) $(CFLAGS) -o $@ $< ${LIBS}
 
-lib${LIB}.a:$(OBJS)
+lib${LIB}.a:$(OBJS)	
 	ar cr lib${LIB}.a $(OBJS)
 	ranlib lib${LIB}.a
 
