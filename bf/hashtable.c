@@ -10,7 +10,7 @@
 
 
 
-int main() {
+/*int main() {
 	BFhash_entry* ff;
 	Hashtable* ht = ht_init(2);
 	BFpage* e = malloc(sizeof(BFpage));
@@ -39,12 +39,12 @@ int main() {
 	ff = ht_get(ht, 88,33);
 	printf("pageNum of ff=e: %d\n", ff->pageNum);
 	ht_remove(ht, 22,123);
-	/*ht_remove(ht, 88,33);*/
+	//*ht_remove(ht, 88,33);
 	ht_remove(ht, 777,998);
 	ht_print(ht);
 	ht_free(ht);
 	ht_print(ht);
-}
+}*/
 
 /*
  * uses x to generate hashcode.
