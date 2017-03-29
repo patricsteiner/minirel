@@ -1,10 +1,9 @@
-#include <stdio.h>
+/*#include <stdio.h>
 #include "bf.h"
 #include "minirel.h"
 #include "lru.h"
 #include "hashtable.h"
-#include "freelist.h"
-
+#include "freelist.h"*/
 /*
  * Constants freelist, hashtable, lru
  * Waiting for an answer of the teacher (question was : can we add some code into the headers he provided us ?)
@@ -90,6 +89,7 @@ int BF_GetBuf(BFreq bq, PFpage **fpage){
 	 */
 }
 
+
 /*
  * Dev : Patric
  */
@@ -98,9 +98,24 @@ int BF_UnpinBuf(BFreq bq){
 }
 
 /*
- * Dev : Patric
+ * Dev : Paul
  */
 int BF_TouchBuf(BFreq bq){
+    BFpage* page;
+
+    /* pointer on the page is get by using hastable */
+    page=(ht_get(ht, bq.fd, bq.pagenum))->bpage;
+
+    /* page has to be pinned */
+    if(page==NULL) return BFE_HASHNOTFOUND;
+    if(page->count==0) return BFE_UNPINNEDPAGE;
+    
+    /* page is marked as dirty */
+    page->dirty=TRUE;  //???????????? TRUE or bq.dirty? /////////////////////////////////////////////////////////////
+    
+    /* page has to be head of the list */
+    return lru_mtu(lru, page); 
+	
 	return 0;
 }
 
@@ -108,11 +123,16 @@ int BF_TouchBuf(BFreq bq){
  * Dev : Paul
  */
 int BF_FlushBuf(int fd){
-	return 0;
+	
+
 }
 
 /*
  * Dev : Paul
  */
-void BF_ShowBuf(void){}
+int BF_ShowBuf(void){
+	return lru_print(lru);
+
+}
+
 

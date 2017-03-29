@@ -58,7 +58,7 @@ int lru_add(LRU* lru, BFpage *new_BFpage){
 
 char lru_find(LRU* lru, BFpage *page){ 
 
-	if (lru->head == NULL) return BFE_EMPTY; //empty list case
+	if (lru->head == NULL) return BFE_NOBUF; //empty list case
 	
 	BFpage *pt= lru->head;
 	do{
@@ -66,7 +66,7 @@ char lru_find(LRU* lru, BFpage *page){
 	     pt=pt->nextpage;
 	}while(pt!=NULL); //stop the loop after the tail
 
-	return 1;// not find
+	return BFE_PAGENOTINBUF;// not find
 }
 
 
@@ -77,7 +77,7 @@ char lru_find(LRU* lru, BFpage *page){
 
 int lru_remove(LRU* lru,BFpage** victim){
 	
-	if (lru->tail==NULL) return BFE_EMPTY; //empty list case
+	if (lru->tail==NULL) return BFE_PAGENOTINBUF; //empty list case
 
 	//the tail is the last recently used page
 	BFpage *pt= lru->tail;
@@ -125,7 +125,7 @@ int lru_remove(LRU* lru,BFpage** victim){
 	     pt=pt->prevpage;
 	}while(pt!=NULL); //stop the loop after the tail
 	
-	return BFE_NOVICTIM; // if NULL is returned then the list is empty (first condition check, or after scanning all list: no page can be choose as a victim
+	return BFE_PAGENOTINBUF; // if NULL is returned then the list is empty (first condition check, or after scanning all list: no page can be choose as a victim
 }
 
 
@@ -157,7 +157,7 @@ void lru_print(LRU* lru){
 /* lru_mtu put the given page in parameters, head of the list                                 */
 /**********************************************************************************************/
 int lru_mtu(LRU* lru, BFpage* mtu_page){ //this mtu_page (considered already in the list) is hit ==> most recently used page which become the head
-	if (lru->tail==NULL) return BFE_EMPTY; //empty list case ==> not normal because the mtu_page is supposed to be in the LRU
+	if (lru->tail==NULL) return BFE_NOBUF; //empty list case ==> not normal because the mtu_page is supposed to be in the LRU
 	
 	BFpage *pt= lru->head;
 	do{
@@ -219,7 +219,7 @@ int main(){
 	
 	//printf("%s /n",lru->tail->nextpage->pageNum);
 	printf("first remove: %d \n",lru_remove(lru,&victim));
-	printf("mtu héhéhhoho %d \n", lru_mtu(lru,page1));
+	printf("mtu héhéhhoho %d \n", lru_mtu(lru,page2));
 	
 	printf("remove number of the page: %d \n", (victim)->pageNum);
 printf("2 remove: %d \n",lru_remove(lru,&victim));
