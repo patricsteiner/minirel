@@ -80,6 +80,7 @@ int BF_GetBuf(BFreq bq, PFpage **fpage){
 		allocate a new buffer page (by page replacement if no free in the freelist)
 		TODO : add a function in freelist.c freeSpaceAvailable(Freelist* fl)
 	 	read the file page into fpage.bufferpage
+		
 	 	pincount set to 1
 	 	dirty set to FALSE
 		other fields
@@ -98,7 +99,7 @@ int BF_UnpinBuf(BFreq bq){
 }
 
 /*
- * Dev : Patric
+ * Dev : Paul
  */
 int BF_TouchBuf(BFreq bq){
 	return 0;
