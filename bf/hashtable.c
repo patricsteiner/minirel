@@ -2,14 +2,6 @@
 #include <stdlib.h>
 #include "hashtable.h"
 
-/* TODO:
-	 include header with BFpage struct instead of having it here in own header
- */
-
-
-
-
-
 /*int main() {
 	BFhash_entry* ff;
 	Hashtable* ht = ht_init(2);
