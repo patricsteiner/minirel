@@ -32,8 +32,8 @@ void BF_Init(void){
  * added to a file. Thus, if there already exists a buffer page in the pool associated
  * with a PF file descriptor and a page number passed over in the buffer control 
  * block bq, a PF error code must be returned. Otherwise, a new buffer page should 
- * be allocated (by page replacement if there 	is no free page in the buffer pool). 
- * Then, its pin count is set to one, 	its dirty flag is set to FALSE, other appropriate
+ * be allocated (by page replacement if there is no free page in the buffer pool). 
+ * Then, its pin count is set to one, its dirty flag is set to FALSE, other appropriate
  * fields of the BFpage structure are set accordingly, and the page becomes the most
  * recently used. Note that it is not necessary to read anything from the file into 
  * the buffer page, because a brand new page is being appended to the file. This function
