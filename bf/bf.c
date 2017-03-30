@@ -1,9 +1,9 @@
-/*#include <stdio.h>
-#include "bf.h"
-#include "minirel.h"
+#include <stdio.h>
+#include "bfHeader.h"
 #include "lru.h"
 #include "hashtable.h"
-#include "freelist.h"*/
+#include "freeList.h"
+
 /*
  * Constants freelist, hashtable, lru
  * Waiting for an answer of the teacher (question was : can we add some code into the headers he provided us ?)

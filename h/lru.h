@@ -1,7 +1,7 @@
 #ifndef __LRU_H__
 #define __LRU_H__
 
-
+#include "bfHeader.h"
 
 typedef struct { 
 	BFpage *head; 

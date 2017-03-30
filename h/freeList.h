@@ -1,18 +1,7 @@
-#include "minirel.h"
+#ifndef __FREELIST_H__
+#define __FREELIST_H__
 
-/******************************************************************************/
-/*   Type definition for BFpage, structure of a buffer entry				  */
-/******************************************************************************/
-typedef struct BFpage {
-	PFpage         	fpage;	     	/* page data from the file                 */
-	struct BFpage*	nextpage;   	/* next in the linked list of buffer pages */
-	struct BFpage*	prevpage;   	/* prev in the linked list of buffer pages */
-	bool_t         	dirty;       	/* TRUE if page is dirty                   */
-	short          	count;       	/* pin count associated with the page      */
-	int            	pageNum;     	/* page number of this page                */
-	int            	fd;          	/* PF file descriptor of this page         */
-} BFpage;
-
+#include "bfHeader.h"
 
 typedef struct Freelist {
 	BFpage*			head;			/* first el of the Freelist */
@@ -48,3 +37,5 @@ int fl_free(Freelist* fl);
  * Print the freelist (actual size)
  */
 void fl_print(Freelist* fl);
+
+#endif

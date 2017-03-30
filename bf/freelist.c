@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "freeList.h"
+#include "bfHeader.h"
 
 
 int main(){

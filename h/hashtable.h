@@ -1,4 +1,6 @@
-#include "minirel.h"
+#ifndef __HASHTABLE_H__
+#define __HASHTABLE_H__
+
 #include "bfHeader.h"
 
 typedef struct BFhash_entry {
@@ -45,3 +47,4 @@ BFhash_entry* ht_get(Hashtable* ht, int fd, int pageNum);
  */
 int ht_free(Hashtable* ht);
 
+#endif

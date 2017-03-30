@@ -1,9 +1,8 @@
 #ifndef __BF_HEADER_H__
-#define __BF_HEADER_H_
-
-
+#define __BF_HEADER_H__
 
 #include "minirel.h"
+#include "bf.h"
 
 /******************************************************************************/
 /*   Type definition for pages of the BF layer.                               */

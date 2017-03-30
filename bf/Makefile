@@ -1,7 +1,7 @@
 		# Makefile for BF layer
 		#for widows use \ in INCDIR
 LIB	= bf
-INCDIR	= ${MINIREL_HOME}\h
+INCDIR	= ${MINIREL_HOME}/h
 INCS	= 
 SRCS	= 
 TESTS	= bftest.c

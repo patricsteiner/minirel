@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "hashtable.h"
+#include "bfHeader.h"
 
 /*int main() {
 	BFhash_entry* ff;
