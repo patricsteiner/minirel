@@ -83,7 +83,7 @@ int lru_remove(LRU* lru,BFpage** victim){
 	BFpage *pt= lru->tail;
 
 	do{
-	     printf("1\n");
+
 	     if(pt->count==0){ // the victim is pointed by pt
 
 		/* to remove from the lru list, change pointer is enough */ 
@@ -97,7 +97,7 @@ int lru_remove(LRU* lru,BFpage** victim){
 			 }
 			
 			else{	
-				printf("hhhhhhhhhho\n");
+				
 				pt->prevpage->nextpage=NULL;/*tail victim ==> the page before tail becomes the tail	*/	lru->tail=pt->prevpage;
 			}
 		}
