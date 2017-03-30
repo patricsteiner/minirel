@@ -27,10 +27,38 @@ void BF_Init(void){
 }
 
 /*
+ * Unlike BF_GetBuf(), this function is used in situations where a new page is 
+ * added to a file. Thus, if there already exists a buffer page in the pool associated
+ * with a PF file descriptor and a page number passed over in the buffer control 
+ * block bq, a PF error code must be returned. Otherwise, a new buffer page should 
+ * be allocated (by page replacement if there is no free page in the buffer pool). 
+ * Then, its pin count is set to one, its dirty flag is set to FALSE, other appropriate
+ * fields of the BFpage structure are set accordingly, and the page becomes the most
+ * recently used. Note that it is not necessary to read anything from the file into 
+ * the buffer page, because a brand new page is being appended to the file. This function
+ * returns BFE_OK if the operation is successful, an error condition otherwise.
  * Dev : Patric
  */
 int BF_AllocBuf(BFreq bq, PFpage **fpage){
-	return 0;
+	BFhash_entry* e = ht_get(ht, &fpage->fd, &fpage->pageNum);
+	if (e != NULL) {
+		return BFE_PAGEINBUF; /* it is a new page, so it must not be in buffer yet */
+	}
+	BFpage* page = fl_give_one(fl);
+	if (page == NULL) { /* there is no free page, need to replace one (aka find victim) */
+		page = lru_remove(lru);
+	}
+
+	page->count = 1;
+	page->dirty = FALSE;
+	page->prevpage = NULL;
+	page->nextpage = NULL;
+	/*page->fpage = &&fpage; ?????? TODO*/
+	page->pageNum = bq.pagenum;
+	page->fd = bq.fd; /* TODO or unixfd? */
+
+	ht_add(ht, page);
+	return lru_add(lru, page);
 }
 
 /*
@@ -91,13 +119,26 @@ int BF_GetBuf(BFreq bq, PFpage **fpage){
 
 
 /*
+ * This function unpins the page whose identification is passed over in the 
+ * buffer control block bq. This page must have been pinned in the buffer already.
+ * Unpinning a page is carried out by decrementing the pin count by one. 
+ * This function returns BFE_OK if the operation is successful, an error condition otherwise.
  * Dev : Patric
  */
 int BF_UnpinBuf(BFreq bq){
-	return 0;
+	BFPage* page = ht_get(ht, bq.fd, bq.pagenum);
+	if (page == NULL || page->count < 1) { /* must be pinned */
+		return -1; /*TODO return what?*/
+	}
+	page->count = page->count - 1;
+	return BFE_OK;
 }
 
 /*
+ * This function marks the page identified by the buffer control block bq as dirty.
+ * The page must have been pinned in the buffer already. The page is also made the
+ * most recently used by moving it to the head of the LRU list. This function
+ * returns BFE_OK if the operation is successful, an error condition otherwise.
  * Dev : Paul
  */
 int BF_TouchBuf(BFreq bq){
@@ -114,9 +155,7 @@ int BF_TouchBuf(BFreq bq){
     page->dirty=TRUE;  //???????????? TRUE or bq.dirty? /////////////////////////////////////////////////////////////
     
     /* page has to be head of the list */
-    return lru_mtu(lru, page); 
-	
-	return 0;
+    return lru_mtu(lru, page);
 }
 
 /*
