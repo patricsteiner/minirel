@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "minirel.h"
+#include "bfUtils.h"
+#include "bf.h"
 
 /****************************************************
 *				LRULIST FUNCTIONS					*
@@ -38,10 +41,10 @@ int lru_add(LRU* lru, BFpage *new_BFpage){
 }
 
 char lru_find(LRU* lru, BFpage *page){ 
-
+	BFpage *pt;
 	if (lru->head == NULL) return BFE_NOBUF; /*empty list case*/
 	
-	BFpage *pt= lru->head;
+	pt= lru->head;
 	do{
 	     if(pt==page) return BFE_OK;/* one address in memory for a page ==> the pointer are equal if they point the same page */
 	     pt=pt->nextpage;
@@ -51,11 +54,11 @@ char lru_find(LRU* lru, BFpage *page){
 }
 
 int lru_remove(LRU* lru,BFpage** victim){
-	
+	BFpage *pt;
 	if (lru->tail==NULL) return BFE_PAGENOTINBUF; /*empty list case*/
 
 	/*the tail is the last recently used page*/
-	BFpage *pt= lru->tail;
+	pt = lru->tail;
 
 	do{
 
@@ -104,16 +107,18 @@ int lru_remove(LRU* lru,BFpage** victim){
 }
 
 void lru_print(LRU* lru){
+	BFpage *pt;
+
 	if(lru->head==NULL){
 		printf(" \n EMPTY List \n\n");
 		return;
 	}
 	printf(" There is %d pages in the LRU list \n\n ", lru->number_of_page);
 
-	BFpage *pt= lru->head;
+	pt = lru->head;
 
 	do{
-             printf(" Data: %s             Dirty flag: %d           pin: %d             Fd - page number: %d - %d \n\n", pt->fpage.pagebuf, pt->dirty, pt->count, pt->fd, pt->pageNum);
+             printf(" Data: %s             Dirty flag: %d           pin: %d             Fd - page number: %d - %d \n\n", pt->fpage.pagebuf, pt->dirty, pt->count, pt->fd, pt->pagenum);
 
 	     pt=pt->nextpage;
 	}while(pt!=NULL); /*stop the loop after the tail*/
@@ -121,9 +126,11 @@ void lru_print(LRU* lru){
 }
 
 int lru_mtu(LRU* lru, BFpage* mtu_page){ /*this mtu_page (considered already in the list) is hit ==> most recently used page which become the head*/
+	BFpage *pt;
+
 	if (lru->tail==NULL) return BFE_NOBUF; /*empty list case ==> not normal because the mtu_page is supposed to be in the LRU*/
 	
-	BFpage *pt= lru->head;
+	pt= lru->head;
 	do{
              if(pt==mtu_page) {
 		if (pt != lru->head){ /*mtu_page is not the head*/
@@ -176,7 +183,7 @@ Freelist* fl_init(int max_size){
 	prev = fl->head;
 	prev->dirty = FALSE;
 	prev->count = 0;
-	prev->pageNum = 0;
+	prev->pagenum = 0;
 	prev->fd = 0;
 
 	for(i = 1; i< max_size; i++){
@@ -210,7 +217,7 @@ int fl_add(Freelist* fl, BFpage* bpage){
 	/*Cleaning the data into the BFPage*/
 	bpage->dirty = FALSE;
 	bpage->count = 0;
-	bpage->pageNum = 0;
+	bpage->pagenum = 0;
 	bpage->fd = 0;
 	bpage->prevpage = NULL;
 
@@ -242,12 +249,12 @@ void fl_print(Freelist* fl){
 
 	printf("\n------PRINTING LIST------");
 	printf("\n This freelist has %d entries\n", fl->size);
-	printf("\npagebuf data\tdirty\tcount\tpageNum\tfd ");
+	printf("\npagebuf data\tdirty\tcount\tpagenum\tfd ");
 	while(ptr!=NULL){
 		printf("\n[%s]", ptr->fpage.pagebuf);
 		printf("\t\t[%d]", ptr->dirty);
 		printf("\t[%d]", ptr->count);
-		printf("\t[%d]", ptr->pageNum);
+		printf("\t[%d]", ptr->pagenum);
 		printf("\t[%d]", ptr->fd);
 		ptr = ptr->nextpage;
 	}
@@ -259,15 +266,17 @@ void fl_print(Freelist* fl){
 *				HASHTABLE FUNCTIONS					*
 *****************************************************/
 
-int ht_hashcode(Hashtable* ht, int fd, int pageNum) {
-	return (123 * fd * pageNum + 87) % 31 % ht->size;
+int ht_hashcode(Hashtable* ht, int fd, int pagenum) {
+	return (123 * fd * pagenum + 87) % 31 % ht->size;
 }
 
 Hashtable* ht_init(size_t size) {
-	Hashtable* ht = malloc(sizeof(Hashtable));
+	size_t i;
+	Hashtable* ht;
+
+	ht = malloc(sizeof(Hashtable));
 	ht->size = size;
 	ht->entries = malloc(sizeof(BFhash_entry*) * size); /* allocate memory for all entry pointers */
-	size_t i;
 	for (i = 0; i < size; i++) {
 		ht->entries[i] = NULL;
 	}
@@ -275,16 +284,21 @@ Hashtable* ht_init(size_t size) {
 }
 
 int ht_add(Hashtable* ht, BFpage* page) {
-	int hc = ht_hashcode(ht, page->fd, page->pageNum);
-	if (ht_get(ht, page->fd, page->pageNum) != NULL) {
-		return NULL; /* entry already in hashtable */
+	int hc;
+	BFhash_entry* newEntry;
+	BFhash_entry* entry;
+
+	hc = ht_hashcode(ht, page->fd, page->pagenum);
+	if (ht_get(ht, page->fd, page->pagenum) != NULL) {
+		return -1; /* entry already in hashtable : */
+		/* must return a int not a null pointer*/
 	}
 	else { /* entry needs to be created and inserted */
-		BFhash_entry* newEntry = malloc(sizeof(BFhash_entry));
+		newEntry = malloc(sizeof(BFhash_entry));
 		newEntry->fd = page->fd;
-		newEntry->pageNum = page->pageNum;
+		newEntry->pagenum = page->pagenum;
 		newEntry->bpage = page;
-		BFhash_entry* entry = ht->entries[hc];
+		entry = ht->entries[hc];
 		if (entry == NULL) { /* bucket is empty, insert it right here */
 			ht->entries[hc] = newEntry;
 			newEntry->preventry = NULL;
@@ -302,12 +316,17 @@ int ht_add(Hashtable* ht, BFpage* page) {
 	return 0;
 }
 
-int ht_remove(Hashtable* ht, int fd, int pageNum) {
-	int hc = ht_hashcode(ht, fd, pageNum);
-	BFhash_entry* e = ht_get(ht, fd, pageNum);
+int ht_remove(Hashtable* ht, int fd, int pagenum) {
+	int hc;
+	BFhash_entry* e;
+	BFhash_entry* prev;
+	BFhash_entry* next;
+
+	hc = ht_hashcode(ht, fd, pagenum);
+	e = ht_get(ht, fd, pagenum);
 	if (e == NULL) return -1; /* not found */
-	BFhash_entry* prev = e->preventry;
-	BFhash_entry* next = e->nextentry;
+	prev = e->preventry;
+	next = e->nextentry;
 	if (prev != NULL && next != NULL) { /* between two entries */
 		prev->nextentry = next;
 		next->preventry = prev;
@@ -325,13 +344,13 @@ int ht_remove(Hashtable* ht, int fd, int pageNum) {
 	return 0;
 }
 
-BFhash_entry* ht_get(Hashtable* ht, int fd, int pageNum) {
-	int hc = ht_hashcode(ht, fd, pageNum);
+BFhash_entry* ht_get(Hashtable* ht, int fd, int pagenum) {
+	int hc = ht_hashcode(ht, fd, pagenum);
 	BFhash_entry* e = ht->entries[hc];
 	if (e == NULL) {
 		return NULL;
 	}
-	while (!(e->fd == fd && e->pageNum == pageNum)) {
+	while (!(e->fd == fd && e->pagenum == pagenum)) {
 		e = e->nextentry;
 		if (e == NULL) return NULL; /* entry not found */
 	}
@@ -354,11 +373,12 @@ int ht_free(Hashtable* ht) {
 }
 
 void ht_print(Hashtable* ht) {
-	size_t i;
+	int i;
+	/* size_t i; */
 	for (i = 0; i < ht->size; i++) {
 		BFhash_entry* e = ht->entries[i];
 		while (e != NULL) {
-			printf("bucket %d: fd %d, pagenum %d\n", i, e->fd, e->pageNum);
+			printf("bucket %d: fd %d, pagenum %d\n", i, e->fd, e->pagenum);
 			e = e->nextentry;
 		}
 	}

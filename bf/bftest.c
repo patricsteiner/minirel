@@ -228,12 +228,16 @@ void testpf1(void)
 */
 }
 
+void testAntoine(void){
+    /**/
+}
+
 main()
 {
   /* initialize PF layer */
   BF_Init();
 
   printf("\n************* Starting testpf1 *************\n");
-  testpf1(); 
+  testpf1();
   printf("\n************* End testpf1 ******************\n");
 }

@@ -20,7 +20,7 @@ typedef struct BFhash_entry {
   struct BFhash_entry *nextentry;     /* next hash table element or NULL */
   struct BFhash_entry *preventry;     /* prev hash table element or NULL */
   int fd;                             /* file descriptor                 */
-  int pageNum;                        /* page number                     */
+  int pagenum;                        /* page number                     */
   struct BFpage *bpage;               /* ptr to buffer holding this page */
 }BFhash_entry;
 
@@ -61,7 +61,7 @@ int ht_free(Hashtable* ht);
 LRU* lru_init();
 int lru_add(LRU* lru, BFpage *new_BF_page);
 char lru_find(LRU* lru, BFpage *page);
-int lru_remove(LRU* lru, BFpage* bfpage);
+int lru_remove(LRU* lru, BFpage** victim);
 void lru_print(LRU* lru);
 int lru_free(LRU* lru);
 int lru_mtu(LRU* lru, BFpage* mtu_page);
