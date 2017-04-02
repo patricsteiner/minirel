@@ -65,19 +65,19 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
  * Returns a PF page in a memory block pointed to by *fpage
  * Dev : Antoine
  */
-int BF_GetBuf(BFreq bq, PFpage **fpage){
+int BF_GetBuf(BFreq bq, PFpage** fpage){
 	BFhash_entry* h_entry;
 	BFpage* bfpage_entry;
 	BFpage* victim;
 	int res;
 
-	h_entry = ht_get(ht, bq->fd, bq->pagenum);
+	h_entry = ht_get(ht, bq.fd, bq.pagenum);
 
 	//page already in buffer
 	if(h_entry != NULL){
-		//to check
-		h_entry->count += 1;
-		&fpage = h_entry->fpage;
+		//A verifier : pas sur du tout
+		h_entry->bpage->count += 1;
+		(*fpage) = &(h_entry->bpage->fpage);
 		return BFE_OK;
 	}
 
@@ -90,19 +90,19 @@ int BF_GetBuf(BFreq bq, PFpage **fpage){
 		if( bfpage_entry == NULL){
 			
 			//find a victim
-			res = lru_remove(lru, &victim);
+			res = lru_remove(lru, victim);
 			
-			if(lru_remove(lru, &victim) != 0){return res;} 	//no victim found
+			if(res != 0){return res;} 	//no victim found
 			else											//victim found
 			{
 				if(victim->dirty == TRUE)					//victim dirty : try to flush it, trhow error otherwise
 				{
-					if(pwrite(victim->unixfd, victim->fpage->pagebuf, PAGE_SIZE, ((victim->pagenum)-1)*PAGE_SIZE) != PAGE_SIZE){
+					if(pwrite(victim->unixfd, victim->fpage.pagebuf, PAGE_SIZE, ((victim->pagenum)-1)*PAGE_SIZE) != PAGE_SIZE){
 						return BFE_INCOMPLETEWRITE;
 					}
 				}
 				//remove victim
-				ht_remove(ht, victim);
+				ht_remove(ht, victim->fd, victim->pagenum); //not sure what to pass to ht_remove
 				fl_add(fl, victim);
 			}
 
@@ -115,24 +115,23 @@ int BF_GetBuf(BFreq bq, PFpage **fpage){
 
 
 		//try to read the file asked
-		if(fread(bq->unixfd, bfpage_entry->fpage->pagebuf, PAGE_SIZE, ((bq->pagenum)-1)*PAGE_SIZE) == -1){
+		if(pread(bq.unixfd, bfpage_entry->fpage.pagebuf, PAGE_SIZE, ((bq.pagenum)-1)*PAGE_SIZE) == -1){
 			return BFE_INCOMPLETEREAD;
 		}
 
 		//set the correct parameters
 		bfpage_entry->count = 1;
 		bfpage_entry->dirty = FALSE;
-		bfpage_entry->fd = bq->fd;
-		bfpage_entry->pagenum = bq->pagenum;
-		bfpage_entry->unixfd = bq->unixfd;
+		bfpage_entry->fd = bq.fd;
+		bfpage_entry->pagenum = bq.pagenum;
+		bfpage_entry->unixfd = bq.unixfd;
 
 		//value returned to the user
-		&fpage = bfpage_entry->fpage;
+		(*fpage) = &(bfpage_entry->fpage);
 		return BFE_OK;
 	
 	}
 }
-
 
 /*
  * This function unpins the page whose identification is passed over in the 
