@@ -74,6 +74,7 @@ int lru_mtu(LRU* lru, BFpage* mtu_page);
 #define BFE_UNPINNEDPAGE        (-54)
 #define BFE_NOVICTIM            (-55)
 #define BFE_EMPTY               (-56)
-#define BFE_PAGENOTOBUF			(-57)
+#define BFE_PAGENOTOBUF		(-57)
+#define BFE_PINNEDPAGE          (-58)
 
 #endif

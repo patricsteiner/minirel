@@ -27,7 +27,7 @@ char lru_find(LRU* lru, BFpage *page);
 /*
  *  Chooses a victim in the LRU and removes a BFpage from LRU, return a pointer on this victim
  */
-BFpage* LRU_remove(LRU* lru);
+int LRU_remove(LRU* lru, BFpage** victim);
 
 /*
  * lru_print: print status of LRU, number of pages, and id of pages    

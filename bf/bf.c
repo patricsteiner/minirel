@@ -152,6 +152,7 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
  * Dev : Patric
  */
 int BF_UnpinBuf(BFreq bq){
+
 	BFpage* page;
 	page = (ht_get(ht, bq.fd, bq.pagenum))->bpage;
 	if (page == NULL || page->count < 1) { /* must be pinned */
@@ -168,6 +169,7 @@ int BF_UnpinBuf(BFreq bq){
  * returns BFE_OK if the operation is successful, an error condition otherwise.
  * Dev : Paul
  */
+
 int BF_TouchBuf(BFreq bq){
     BFpage* page;
 
@@ -179,7 +181,7 @@ int BF_TouchBuf(BFreq bq){
     if(page->count==0) return BFE_UNPINNEDPAGE;
     
     /* page is marked as dirty */
-    page->dirty=TRUE;  /*???????????? TRUE or bq.dirty? */
+    page->dirty=TRUE;  
     /* page has to be head of the list */
     return lru_mtu(lru, page);
 }
@@ -188,15 +190,85 @@ int BF_TouchBuf(BFreq bq){
  * Dev : Paul
  */
 int BF_FlushBuf(int fd){
-	return 1;
+
+	BFpage* pt;
+	int ret; /* used to recuperate return values */
+	
+	/* start checking with the tail, until the head */
+	
+	if (lru->tail==NULL) return BFE_EMPTY; /*empty list case*/
+	pt= lru->tail;
+
+	do{
+	     if ( pt->fd==fd){
+
+		 if(pt->count==0){ 
+
+			/* to remove from the lru list,to change pointer is enough */ 
+			if (pt != lru->head){
+	  
+				if(pt!=lru->tail) {
+					pt->prevpage->nextpage=pt->nextpage; 
+					pt->nextpage->prevpage=pt->prevpage;
+				 }
+			
+				else{	
+					pt->prevpage->nextpage=NULL;/*tail removed ==> the page before tail becomes the tail	*/	
+					lru->tail=pt->prevpage;
+				}
+			}
+			else{
+				if(pt!=lru->tail) {
+						pt->nextpage->prevpage=NULL;/* head removed ==> next page becomes head */
+						lru->head=pt->nextpage;
+				 }
+				else{/* the head is the tail */
+					lru->head=NULL;
+					lru->tail=NULL;
+				}
+			}
+
+
+			/************  if page is dirty, we write it on the disk             *********************************/
+			if(pt->dirty){
+				ret=pwrite(pt->unixfd,pt->fpage.pagebuf, PAGE_SIZE, PAGE_SIZE*((pt->pagenum)-1));
+
+				if(ret<0){
+					return BFE_UNIX;
+				}
+				if(PAGE_SIZE>ret){
+					return BFE_INCOMPLETEWRITE;
+				}			
+
+			}
+			/************ page is removed, next step add it to the free list ********************************/
+
+			pt->nextpage=NULL;
+			pt->prevpage=NULL;
+			lru->number_of_page-=1;
+			fl_add(fl, pt);
+		}
+
+		else { /* the page is still pinned */
+ 			return BFE_PINNEDPAGE; 
+		}
+	   }
+		
+	     pt=pt->prevpage;
+	}while(pt!=NULL); /*stop the loop after the head*/
+
+	return BFE_OK; /*every page of the file which were in the LRU list, are now in the free list*/
+	
+  
+
 }
 
 /*
  * Dev : Paul
- * remark : in bf.h, the proto is void BF_ShowBuf(void)
+ * 
  */
 void BF_ShowBuf(){
-	/*return lru_print(lru);*/
+	lru_print(lru);
 
 }
 
