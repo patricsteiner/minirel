@@ -17,9 +17,6 @@ CFLAGS	= -g -ansi -pedantic
 
 all: lib${LIB}.a ${LIB}test
 
-freelist:
-	$(CC) $(CFLAGS) -o freelist -I ..\h
-
 ${LIB}test: ${LIB}test.o lib${LIB}.a
 	$(CC) $(CFLAGS) -o $@ $< ${LIBS}
 

@@ -1,8 +1,10 @@
 #include <stdio.h>
-#include "bfHeader.h"
-#include "lru.h"
-#include "hashtable.h"
-#include "freeList.h"
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include "minirel.h"
+#include "bfUtils.h"
+#include "bf.h"
 
 /*
  * Constants freelist, hashtable, lru
@@ -21,7 +23,7 @@ Hashtable* ht;
  * Dev : Antoine
  */
 void BF_Init(void){
-	fl = fl_init(BF_MAX_BUFS); //buffer entries malloc in the fl_function
+	fl = fl_init(BF_MAX_BUFS); /*buffer entries malloc in the fl_function*/
 	lru = lru_init();
 	ht = ht_init(BF_HASH_TBL_SIZE);
 }
@@ -73,35 +75,35 @@ int BF_GetBuf(BFreq bq, PFpage **fpage){
 
 	h_entry = ht_get(ht, bq->fd, bq->pagenum);
 
-	//page already in buffer
+	/*page already in buffer*/
 	if(h_entry != NULL){
-		//to check
+		/*to check*/
 		h_entry->count += 1;
 		&fpage = h_entry->fpage;
 		return BFE_OK;
 	}
 
 
-	//page not in buffer
+	/*page not in buffer*/
 	else{
 		bfpage_entry = fl_give_one(fl);
 
-		//No more  place in the buffer <=> No more freespace
+		/*No more  place in the buffer <=> No more freespace*/
 		if( bfpage_entry == NULL){
 			
-			//find a victim
+			/*find a victim*/
 			res = lru_remove(lru, &victim);
 			
-			if(lru_remove(lru, &victim) != 0){return res;} 	//no victim found
-			else											//victim found
+			if(lru_remove(lru, &victim) != 0){return res;} 	/*no victim found*/
+			else											/*victim found*/
 			{
-				if(victim->dirty == TRUE)					//victim dirty : try to flush it, trhow error otherwise
+				if(victim->dirty == TRUE)					/*victim dirty : try to flush it, trhow error otherwise*/
 				{
 					if(pwrite(victim->unixfd, victim->fpage->pagebuf, PAGE_SIZE, ((victim->pagenum)-1)*PAGE_SIZE) != PAGE_SIZE){
 						return BFE_INCOMPLETEWRITE;
 					}
 				}
-				//remove victim
+				/*remove victim*/
 				ht_remove(ht, victim);
 				fl_add(fl, victim);
 			}
@@ -109,24 +111,24 @@ int BF_GetBuf(BFreq bq, PFpage **fpage){
 			bfpage_entry = fl_give_one(fl);
 		}
 		
-		//space available in buffer(add page to LRU and HT)
+		/*space available in buffer(add page to LRU and HT)*/
 		if(lru_add(lru, bfpage_entry) == BFE_OK && ht_add(ht, bfpage_entry) == BFE_OK){
 		}else{return BFE_PAGENOTOBUF;}
 
 
-		//try to read the file asked
+		/*try to read the file asked*/
 		if(fread(bq->unixfd, bfpage_entry->fpage->pagebuf, PAGE_SIZE, ((bq->pagenum)-1)*PAGE_SIZE) == -1){
 			return BFE_INCOMPLETEREAD;
 		}
 
-		//set the correct parameters
+		/*set the correct parameters*/
 		bfpage_entry->count = 1;
 		bfpage_entry->dirty = FALSE;
 		bfpage_entry->fd = bq->fd;
 		bfpage_entry->pagenum = bq->pagenum;
 		bfpage_entry->unixfd = bq->unixfd;
 
-		//value returned to the user
+		/*value returned to the user*/
 		&fpage = bfpage_entry->fpage;
 		return BFE_OK;
 	
@@ -168,8 +170,7 @@ int BF_TouchBuf(BFreq bq){
     if(page->count==0) return BFE_UNPINNEDPAGE;
     
     /* page is marked as dirty */
-    page->dirty=TRUE;  //???????????? TRUE or bq.dirty? /////////////////////////////////////////////////////////////
-    
+    page->dirty=TRUE;  /*???????????? TRUE or bq.dirty? */
     /* page has to be head of the list */
     return lru_mtu(lru, page);
 }
@@ -184,6 +185,7 @@ int BF_FlushBuf(int fd){
 
 /*
  * Dev : Paul
+ * remark : in bf.h, the proto is void BF_ShowBuf(void)
  */
 int BF_ShowBuf(void){
 	return lru_print(lru);
