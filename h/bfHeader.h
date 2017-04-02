@@ -17,6 +17,7 @@ typedef struct BFpage {
 	short count; // pin count associated with the page
 	int pageNum;//page number of this page
 	int fd; // PF file descriptor of this page
+	int unixfd;// unix file descriptor
 }BFpage;
 
 
@@ -28,6 +29,7 @@ typedef struct BFpage {
 #define BFE_UNPINNEDPAGE        (-54)
 #define BFE_NOVICTIM            (-55)
 #define BFE_EMPTY               (-56)
+#define BFE_PINNEDPAGE		(-57)
 
 
 #endif
