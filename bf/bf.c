@@ -51,7 +51,7 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 	 */
 	BFhash_entry* e;
 	BFpage* page;
-	BFpage* victim;
+	/*BFpage* victim;*/
 	int res;
 
 	e = ht_get(ht, bq.fd, bq.pagenum);
@@ -60,8 +60,9 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 		return BFE_PAGEINBUF; /* it is a new page, so it must not be in buffer yet */
 	}
 	page = fl_give_one(fl);
+	printf("trolol%x", page);
 	if (page == NULL) { /* there is no free page, need to replace one (aka find victim) */
-		res = lru_remove(lru, &victim);
+		res = lru_remove(lru, &page);
 		/*no victim found */	
 		if(res != 0){return res;} 
 	}
