@@ -35,7 +35,7 @@ void BF_Init(void){
 /*
  * Unlike BF_GetBuf(), this function is used in situations where a new page is 
  * added to a file. Thus, if there already exists a buffer page in the pool associated
- * with a PF file descriptor and a page number passed over in the buffer control 
+ * with a PF file ² and a page number passed over in the buffer control 
  * block bq, a PF error code must be returned. Otherwise, a new buffer page should 
  * be allocated (by page replacement if there is no free page in the buffer pool). 
  * Then, its pin count is set to one, its dirty flag is set to FALSE, other appropriate
@@ -92,19 +92,12 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 
 	/*page already in buffer */
 	if(h_entry != NULL){
-<<<<<<< HEAD
-		/*A verifier : pas sur du tout */
-=======
-		//A verifier : pas sur du tout
->>>>>>> dev
 		h_entry->bpage->count += 1;
 		(*fpage) = &(h_entry->bpage->fpage);
 		return BFE_OK;
 	}
 
-<<<<<<< HEAD
 	/*page not in buffer */
-	/*maybe create a function delete victim*/
 	bfpage_entry = fl_give_one(fl);
 
 	/*No more  place in the buffer <=> No more freespace */
@@ -119,33 +112,9 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 		if(victim->dirty == TRUE){
 			if(pwrite(victim->unixfd, victim->fpage.pagebuf, PAGE_SIZE, ((victim->pagenum)-1)*PAGE_SIZE) != PAGE_SIZE){
 				return BFE_INCOMPLETEWRITE;
-=======
-
-	//page not in buffer
-	else{
-		bfpage_entry = fl_give_one(fl);
-
-		//No more  place in the buffer <=> No more freespace
-		if( bfpage_entry == NULL){
-			
-			//find a victim
-			res = lru_remove(lru, victim);
-			
-			if(res != 0){return res;} 	//no victim found
-			else											//victim found
-			{
-				if(victim->dirty == TRUE)					//victim dirty : try to flush it, trhow error otherwise
-				{
-					if(pwrite(victim->unixfd, victim->fpage.pagebuf, PAGE_SIZE, ((victim->pagenum)-1)*PAGE_SIZE) != PAGE_SIZE){
-						return BFE_INCOMPLETEWRITE;
-					}
-				}
-				//remove victim
-				ht_remove(ht, victim->fd, victim->pagenum); //not sure what to pass to ht_remove
-				fl_add(fl, victim);
->>>>>>> dev
 			}
 		}
+
 		/*remove victim */
 		ht_remove(ht, victim->fd, victim->pagenum); /*not sure what to pass to ht_remove */
 		fl_add(fl, victim);
@@ -153,12 +122,10 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 		bfpage_entry = fl_give_one(fl);
 	}
 	
-	/*space available in buffer(add page to LRU and HT) */
+	/* if space available in buffer(add page to LRU and HT) */
 	if(lru_add(lru, bfpage_entry) == BFE_OK && ht_add(ht, bfpage_entry) == BFE_OK){
 	}else{return BFE_PAGENOTOBUF;}
 
-
-<<<<<<< HEAD
 	/*try to read the file asked */
 	if(pread(bq.unixfd, bfpage_entry->fpage.pagebuf, PAGE_SIZE, ((bq.pagenum)-1)*PAGE_SIZE) == -1){
 		return BFE_INCOMPLETEREAD;
@@ -174,24 +141,6 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 	/*value returned to the user */
 	(*fpage) = &(bfpage_entry->fpage);
 	return BFE_OK;
-=======
-		//try to read the file asked
-		if(pread(bq.unixfd, bfpage_entry->fpage.pagebuf, PAGE_SIZE, ((bq.pagenum)-1)*PAGE_SIZE) == -1){
-			return BFE_INCOMPLETEREAD;
-		}
-
-		//set the correct parameters
-		bfpage_entry->count = 1;
-		bfpage_entry->dirty = FALSE;
-		bfpage_entry->fd = bq.fd;
-		bfpage_entry->pagenum = bq.pagenum;
-		bfpage_entry->unixfd = bq.unixfd;
-
-		//value returned to the user
-		(*fpage) = &(bfpage_entry->fpage);
-		return BFE_OK;
->>>>>>> dev
-	
 }
 
 /*
