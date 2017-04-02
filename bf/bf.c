@@ -125,9 +125,9 @@ int BF_TouchBuf(BFreq bq){
  * Dev : Paul
  */
 int BF_FlushBuf(int fd){
-	if (lru->tail==NULL) return BFE_PAGENOTINBUF; //empty list case
+	if (lru->tail==NULL) return BFE_EMPTY; /*empty list case*/
 
-	//we start by checking if tail is page of this file 
+	/* start checking with the tail */
 	BFpage *pt= lru->tail;
 	int ret; /* used to recuperate return values */
 
@@ -136,7 +136,7 @@ int BF_FlushBuf(int fd){
 
 		 if(pt->count==0){ 
 
-			/* to remove from the lru list, change pointer is enough */ 
+			/* to remove from the lru list,to change pointer is enough */ 
 			if (pt != lru->head){
 	  
 				if(pt!=lru->tail) {
@@ -166,7 +166,7 @@ int BF_FlushBuf(int fd){
 				ret=pwrite(pt->unixfd,pt->fpage->pagebuf, PAGE_SIZE, PAGE_SIZE*((pt->pagenum)-1));
 
 				if(ret<0){
-					perror("impossible to write the file");
+					return BFE_UNIX;
 				}
 				if(PAGE_SIZE>ret){
 					return BFE_INCOMPLETEWRITE;
