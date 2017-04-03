@@ -16,6 +16,9 @@ LRU* lru;
 Hashtable* ht;
 
 
+	
+
+
 /*
  * Init the BF layer
  * Creates all the buffer entries and add them to the freelist
@@ -29,8 +32,49 @@ void BF_Init(void){
 	fl = fl_init(BF_MAX_BUFS); /*buffer entries malloc in the fl_function*/
 	lru = lru_init();
 	ht = ht_init(BF_HASH_TBL_SIZE);
-
 }
+
+
+/*
+ *FlushPage: -find a victim, flush it in disk dive if it is dirty 
+ *	     -remove it from hastable and add a new page in free
+ *	     - used in BF_GetBuf and BF_AllocBuf
+ *Dev:Paul
+ */
+
+int BF_FlushPage(LRU* lru){
+	BFpage* victim;
+	int res; 
+			
+	/*try to find a victim */
+	res = lru_remove(lru, &victim);	
+        /*no victim found */	
+	if(res != 0){
+		return res;
+	} 
+
+	/*victim found */	
+	/*victim dirty : try to flush it, trhow error otherwise */
+	if(victim->dirty == TRUE){
+		if(pwrite(victim->unixfd, victim->fpage.pagebuf, PAGE_SIZE, ((victim->pagenum))*PAGE_SIZE) != PAGE_SIZE){
+			return BFE_INCOMPLETEWRITE;
+		}
+	}
+	
+	/*removes victim */ 
+	res=ht_remove(ht, victim->fd, victim->pagenum);
+	if(res != 0){
+		printf("htremove \n");
+		return res;
+	} 
+	res=fl_add(fl, victim);	
+	if(res != 0){
+		printf("fl add \n");
+		return res;
+	} 
+}	
+
+
 
 /*
  * Unlike BF_GetBuf(), this function is used in situations where a new page is 
@@ -51,19 +95,26 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 	 */
 	BFhash_entry* e;
 	BFpage* page;
-	/*BFpage* victim;*/
+	
 	int res;
 
 	e = ht_get(ht, bq.fd, bq.pagenum);
-	/* e = ht_get(ht, &fpage->fd, &fpage->pageNum);*/
+	
 	if (e != NULL) {
 		return BFE_PAGEINBUF; /* it is a new page, so it must not be in buffer yet */
 	}
 	page = fl_give_one(fl);
 	if (page == NULL) { /* there is no free page, need to replace one (aka find victim) */
-		res = lru_remove(lru, &page);
-		/*no victim found */	
-		if(res != 0){return res;} 
+		
+		/* remove a victim in lru and add a new page in the freelist */
+		res=BF_FlushPage(lru);
+		if(res != 0){
+			return res;
+		} 
+
+		/* we use this new page */
+		page = fl_give_one(fl);	
+		
 	}
 
 	page->count = 1;
@@ -104,32 +155,19 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 
 	/*No more  place in the buffer <=> No more freespace */
 	if( bfpage_entry == NULL){
-		/*try to find a victim */
-		res = lru_remove(lru, &victim);	
-		/*no victim found */	
-		if(res != 0){return res;} 
-
-		/*victim found */	
-		/*victim dirty : try to flush it, trhow error otherwise */
-		if(victim->dirty == TRUE){
-			if(pwrite(victim->unixfd, victim->fpage.pagebuf, PAGE_SIZE, ((victim->pagenum)-1)*PAGE_SIZE) != PAGE_SIZE){
-				return BFE_INCOMPLETEWRITE;
-			}
-		}
-
-		/*remove victim */
-		ht_remove(ht, victim->fd, victim->pagenum); /*not sure what to pass to ht_remove */
-		fl_add(fl, victim);
+		
+		/* remove a victim in lru and add a page in the freelist */
+		BF_FlushPage(lru);
 		
 		bfpage_entry = fl_give_one(fl);
 	}
 	
-	/* if space available in buffer(add page to LRU and HT) */
+	/* add page to LRU and HT */
 	if(lru_add(lru, bfpage_entry) == BFE_OK && ht_add(ht, bfpage_entry) == BFE_OK){
 	}else{return BFE_PAGENOTOBUF;}
 
 	/*try to read the file asked */
-	if(pread(bq.unixfd, bfpage_entry->fpage.pagebuf, PAGE_SIZE, ((bq.pagenum)-1)*PAGE_SIZE) == -1){
+	if(pread(bq.unixfd, bfpage_entry->fpage.pagebuf, PAGE_SIZE, ((bq.pagenum))*PAGE_SIZE) == -1){
 		return BFE_INCOMPLETEREAD;
 	}
 
@@ -193,11 +231,13 @@ int BF_TouchBuf(BFreq bq){
 int BF_FlushBuf(int fd){
 
 	BFpage* pt;
+	BFpage* prev; /* when the page will be add in free list, her prevpage pointer will be set to null, we need this variable to copy it before*/
+	
 	int ret; /* used to recuperate return values */
 	
 	/* start checking with the tail, until the head */
 	
-	if (lru->tail==NULL) return BFE_EMPTY; /*empty list case*/
+	if (lru->tail==NULL) return BFE_OK; /*empty list case*/
 	pt= lru->tail;
 
 	do{
@@ -232,21 +272,23 @@ int BF_FlushBuf(int fd){
 
 			/************  if page is dirty, we write it on the disk             *********************************/
 			if(pt->dirty){
-				ret=pwrite(pt->unixfd,pt->fpage.pagebuf, PAGE_SIZE, PAGE_SIZE*((pt->pagenum)-1));
+				ret=pwrite(pt->unixfd,pt->fpage.pagebuf, PAGE_SIZE, PAGE_SIZE*((pt->pagenum)));
 
 				if(ret<0){
+					printf("unix \n");
 					return BFE_UNIX;
 				}
 				if(PAGE_SIZE>ret){
+					printf("incomp \n");
 					return BFE_INCOMPLETEWRITE;
 				}			
 
 			}
 			/************ page is removed, next step add it to the free list ********************************/
 
-			pt->nextpage=NULL;
-			pt->prevpage=NULL;
 			lru->number_of_page-=1;
+			prev=pt->prevpage;
+			/* ht_remove(ht, pt->fd, pt->pagenum); */
 			fl_add(fl, pt);
 		}
 
@@ -255,7 +297,8 @@ int BF_FlushBuf(int fd){
 		}
 	   }
 		
-	     pt=pt->prevpage;
+	     pt=prev;
+
 	}while(pt!=NULL); /*stop the loop after the head*/
 
 	return BFE_OK; /*every page of the file which were in the LRU list, are now in the free list*/

@@ -211,8 +211,11 @@ BFpage* fl_give_one(Freelist* fl){
 }
 
 int fl_add(Freelist* fl, BFpage* bpage){
-	if(fl == NULL || bpage == NULL){exit(EXIT_FAILURE);}
-	if(fl->size >= fl->max_size){printf("\nFL ERROR : Max Size reached");exit(EXIT_FAILURE);}
+	if(fl == NULL || bpage == NULL){return 4;}
+	if(fl->size >= fl->max_size){
+		printf("\nFL ERROR : Max Size reached");
+		return 3;
+	}
 
 	/*Cleaning the data into the BFPage*/
 	bpage->dirty = FALSE;
@@ -225,6 +228,8 @@ int fl_add(Freelist* fl, BFpage* bpage){
 	bpage->nextpage = fl->head;
 	fl->head = bpage;
 	fl->size += 1;
+		
+	return BFE_OK;
 }
 
 int fl_free(Freelist* fl){
@@ -351,6 +356,7 @@ BFhash_entry* ht_get(Hashtable* ht, int fd, int pagenum) {
 		return NULL;
 	}
 	while (!(e->fd == fd && e->pagenum == pagenum)) {
+		printf("%d %d nn \n", e->fd, e->pagenum);
 		e = e->nextentry;
 		if (e == NULL) return NULL; /* entry not found */
 	}

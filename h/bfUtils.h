@@ -66,6 +66,12 @@ void lru_print(LRU* lru);
 int lru_free(LRU* lru);
 int lru_mtu(LRU* lru, BFpage* mtu_page);
 
+/*
+ * prototypes for more BF-layer functions
+ */
+
+int BF_FlushPage(LRU* lru);
+
 
 /**********************************************************************************************/
 /*More errors use for BF layer                                                                */

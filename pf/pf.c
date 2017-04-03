@@ -4,7 +4,7 @@
 #include "pfHeader.h"
 
 
-PFftab_ele *PFftab; 
+PFftab_ele* PFftab; 
 int PFftab_length;
 
 
