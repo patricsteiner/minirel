@@ -1,11 +1,12 @@
 #include <stdio.h>
+#include <unistd.h>
 #include "bf.h"
 #include "minirel.h"
 #include "pfHeader.h"
 
 
-PFftab_ele* PFftab; 
-int PFftab_length;
+PFftab_ele *PFftab; 
+size_t PFftab_length;
 
 
 /*
@@ -70,13 +71,37 @@ int PF_CreateFile(char *filename){
 
 	
 
+/*
+ * This function destroys the file filename. The file should have existed, and should not be already 
+ * open. This function returns PFE_OK if the operation is successful, an error condition otherwise.
+ * Dev: Patric
+ */
+int PF_DestroyFile (char *filename) {
+	if (access(filename, F_OK) != -1) { // if file exists
+		return (unlink(filename));
+	}
+	return -1; // TODO better error code?
+}
 
 
-
-
-
-
-
+/* 
+ *    int     fd;          PF file descriptor
+ *    int     *pageNum;    return the number of the page allocated
+ *    char    **pagebuf;   return a pointer to the page content
+ * This function allocates a page in the file associated with a file descriptor fd. This new page
+ * is appended to the end of the file. This function also allocates a buffer entry corresponding to
+ * the new page. The value of pageNum for the page being allocated must be determined from the
+ * information stored in the file header. The page allocated by this function is pinned and marked
+ * dirty so that it will be written to the file eventually. Upon a successful page allocation, 
+ * the file header must be updated accordingly. This function returns PFE_OK if the operation is
+ * successful, an error condition otherwise.
+ * Dev: Patric
+ */
+int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
+	&pagenum = ++PFftab[fd]->hdr->numpages; /* allocate a new page in given file */
+	PFftab[fd]->hdrchanged = TRUE;
+	 
+}
 
 
 
