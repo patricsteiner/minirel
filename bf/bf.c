@@ -64,8 +64,8 @@ int BF_FlushPage(LRU* lru){
 	/*removes victim */ 
 	res=ht_remove(ht, victim->fd, victim->pagenum);
 	if(res != 0){
-		printf("htremove \n");
-		return res;
+		printf("not found in hashtable \n");
+		/*return res;*/
 	} 
 	res=fl_add(fl, victim);	
 	if(res != 0){
@@ -107,7 +107,7 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 	if (page == NULL) { /* there is no free page, need to replace one (aka find victim) */
 		
 		/* remove a victim in lru and add a new page in the freelist */
-		res=BF_FlushPage(lru);
+		res = BF_FlushPage(lru);
 		if(res != 0){
 			return res;
 		} 
@@ -288,7 +288,7 @@ int BF_FlushBuf(int fd){
 
 			lru->number_of_page-=1;
 			prev=pt->prevpage;
-			/* ht_remove(ht, pt->fd, pt->pagenum); */
+			ht_remove(ht, pt->fd, pt->pagenum);
 			fl_add(fl, pt);
 		}
 

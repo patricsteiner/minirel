@@ -45,7 +45,7 @@ void writefile(char *fname)
 
         /* allocate a page */
         if((error = BF_AllocBuf(breq, &fpage)) != BFE_OK) {
-	    printf("alloc buffer failed");
+	    printf("alloc buffer failed, %d", error);
 	    exit(-11);
 	}
 

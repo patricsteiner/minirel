@@ -23,6 +23,9 @@ antoine:
 patric:
 	$(CC) $(CFLAGS) bf.c bfUtils.c bftest.c -g -I ../h
 
+patric2:
+	$(CC) $(CFLAGS) bfUtils.c -g -I ../h
+
 ${LIB}test: ${LIB}test.o lib${LIB}.a
 	$(CC) $(CFLAGS) -o $@ $< ${LIBS}
 

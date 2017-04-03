@@ -5,6 +5,7 @@
 #include "bfUtils.h"
 #include "bf.h"
 
+
 /****************************************************
 *				LRULIST FUNCTIONS					*
 *****************************************************/
@@ -303,11 +304,11 @@ int ht_add(Hashtable* ht, BFpage* page) {
 		newEntry->fd = page->fd;
 		newEntry->pagenum = page->pagenum;
 		newEntry->bpage = page;
+		newEntry->nextentry = NULL;
 		entry = ht->entries[hc];
 		if (entry == NULL) { /* bucket is empty, insert it right here */
 			ht->entries[hc] = newEntry;
 			newEntry->preventry = NULL;
-			newEntry->nextentry = NULL;
 		}
 		else { /* we have to iterate to last place of this bucket */
 			while (entry->nextentry != NULL) {
@@ -315,7 +316,6 @@ int ht_add(Hashtable* ht, BFpage* page) {
 			}
 			newEntry->preventry = entry;
 			entry->nextentry = newEntry;
-			newEntry->nextentry = NULL;
 		}
 	}
 	return 0;
@@ -329,7 +329,11 @@ int ht_remove(Hashtable* ht, int fd, int pagenum) {
 
 	hc = ht_hashcode(ht, fd, pagenum);
 	e = ht_get(ht, fd, pagenum);
-	if (e == NULL) return -1; /* not found */
+	if (e == NULL) {
+		/*printf("looking for fd %d pagenum %d ", fd, pagenum);
+		ht_print(ht);*/
+		return -1; /* not found */
+	}
 	prev = e->preventry;
 	next = e->nextentry;
 	if (prev != NULL && next != NULL) { /* between two entries */
@@ -342,10 +346,9 @@ int ht_remove(Hashtable* ht, int fd, int pagenum) {
 	else if (prev == NULL && next != NULL) { /* when first entry in bucket */
 		ht->entries[hc] = next;
 	}
-	else { /* when only entry in bucket */
-		ht->entries[hc] = NULL;
-	}
-	free(e);
+	/*free(*(ht->entries[hc]));    TODO free this stuff*/
+	ht->entries[hc] = NULL;
+	
 	return 0;
 }
 
@@ -356,9 +359,10 @@ BFhash_entry* ht_get(Hashtable* ht, int fd, int pagenum) {
 		return NULL;
 	}
 	while (!(e->fd == fd && e->pagenum == pagenum)) {
-		printf("%d %d nn \n", e->fd, e->pagenum);
 		e = e->nextentry;
-		if (e == NULL) return NULL; /* entry not found */
+		if (e == NULL) {
+			return NULL; /* entry not found */
+		}
 	}
 	return e;
 }
@@ -379,13 +383,16 @@ int ht_free(Hashtable* ht) {
 }
 
 void ht_print(Hashtable* ht) {
-	int i;
-	/* size_t i; */
+	size_t i;
+	/*printf("-------------------- begin content of hashtable --------------------\n");*/
 	for (i = 0; i < ht->size; i++) {
 		BFhash_entry* e = ht->entries[i];
+		printf("Bucket [%d]: ", i);
 		while (e != NULL) {
-			printf("bucket %d: fd %d, pagenum %d\n", i, e->fd, e->pagenum);
+			printf("(fd %d, pagenum %d) ",e->fd, e->pagenum);
 			e = e->nextentry;
 		}
+		printf("\n");
 	}
+	/*printf("--------------------- end content of hashtable ---------------------\n");*/
 }
