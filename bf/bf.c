@@ -65,7 +65,7 @@ int BF_FlushPage(LRU* lru){
 	res=ht_remove(ht, victim->fd, victim->pagenum);
 	if(res != 0){
 		printf("not found in hashtable \n");
-		/*return res;*/
+		return res;
 	} 
 	res=fl_add(fl, victim);	
 	if(res != 0){
@@ -157,13 +157,14 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 	if( bfpage_entry == NULL){
 		
 		/* remove a victim in lru and add a page in the freelist */
-		BF_FlushPage(lru);
-		
+		res=BF_FlushPage(lru);
+		if(res != BFE_OK) return res;
+
 		bfpage_entry = fl_give_one(fl);
 	}
 	
 	/* add page to LRU and HT */
-	if(lru_add(lru, bfpage_entry) == BFE_OK && ht_add(ht, bfpage_entry) == BFE_OK){
+	if(lru_add(lru, bfpage_entry) == BFE_OK /*&& ht_add(ht, bfpage_entry) == BFE_OK*/){
 	}else{return BFE_PAGENOTOBUF;}
 
 	/*try to read the file asked */
@@ -191,13 +192,14 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
  * Dev : Patric
  */
 int BF_UnpinBuf(BFreq bq){
-
-	BFpage* page;
-	page = (ht_get(ht, bq.fd, bq.pagenum))->bpage;
-	if (page == NULL || page->count < 1) { /* must be pinned */
-		return -1; /*TODO return what?*/
+	BFhash_entry* ht_entry;
+	
+	ht_entry = (ht_get(ht, bq.fd, bq.pagenum)); 
+	if (ht_entry == NULL ) { /* must be pinned */
+		return BFE_PAGENOTINBUF; /*TODO return what?*/
 	}
-	page->count = page->count - 1;
+	if(ht_entry->bpage->count<1) return BFE_UNPINNEDPAGE;
+	ht_entry->bpage->count = ht_entry->bpage->count - 1;
 	return BFE_OK;
 }
 
