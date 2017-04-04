@@ -330,24 +330,36 @@ int ht_remove(Hashtable* ht, int fd, int pagenum) {
 	hc = ht_hashcode(ht, fd, pagenum);
 	e = ht_get(ht, fd, pagenum);
 	if (e == NULL) {
-		/*printf("looking for fd %d pagenum %d ", fd, pagenum);
-		ht_print(ht);*/
+		printf("looking for fd %d pagenum %d ", fd, pagenum);
+		
 		return -1; /* not found */
 	}
 	prev = e->preventry;
 	next = e->nextentry;
+	
 	if (prev != NULL && next != NULL) { /* between two entries */
+	
 		prev->nextentry = next;
 		next->preventry = prev;
 	} 
-	else if (prev != NULL && next == NULL) { /* when last entry in bucket */
-		prev->nextentry = NULL;
-	}
-	else if (prev == NULL && next != NULL) { /* when first entry in bucket */
-		ht->entries[hc] = next;
+	else{
+		if (prev != NULL && next == NULL) { /* when last entry in bucket */
+			
+			prev->nextentry = NULL;
+		}
+		else {
+			/* when first entry in bucket */
+			
+				
+			ht->entries[hc] = next;
+			
+			if( next!=NULL)next->preventry=NULL; /* next becomes the first entry */
+				
+				
+			
+		}
 	}
 	/* need a free */
-	
 	return 0;
 }
 

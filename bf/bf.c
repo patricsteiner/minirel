@@ -63,6 +63,7 @@ int BF_FlushPage(LRU* lru){
 	
 	/*removes victim */ 
 	res=ht_remove(ht, victim->fd, victim->pagenum);
+
 	if(res != 0){
 		printf("not found in hashtable \n");
 		return res;
@@ -145,6 +146,7 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 
 	/*page already in buffer */
 	if(h_entry != NULL){
+		printf( " ce que me donne la ht  %d , %d \n" , h_entry->bpage->fd, h_entry->bpage->pagenum);
 		h_entry->bpage->count += 1;
 		(*fpage) = &(h_entry->bpage->fpage);
 		return BFE_OK;
@@ -163,14 +165,6 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 		bfpage_entry = fl_give_one(fl);
 	}
 	
-	/* add page to LRU and HT */
-	if(lru_add(lru, bfpage_entry) == BFE_OK /*&& ht_add(ht, bfpage_entry) == BFE_OK*/){
-	}else{return BFE_PAGENOTOBUF;}
-
-	/*try to read the file asked */
-	if(pread(bq.unixfd, bfpage_entry->fpage.pagebuf, PAGE_SIZE, ((bq.pagenum))*PAGE_SIZE) == -1){
-		return BFE_INCOMPLETEREAD;
-	}
 
 	/*set the correct parameters */
 	bfpage_entry->count = 1;
@@ -178,6 +172,18 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 	bfpage_entry->fd = bq.fd;
 	bfpage_entry->pagenum = bq.pagenum;
 	bfpage_entry->unixfd = bq.unixfd;
+
+
+
+
+	/* add page to LRU and HT */
+	if(lru_add(lru, bfpage_entry) == BFE_OK && ht_add(ht, bfpage_entry) == BFE_OK){
+	}else{return BFE_PAGENOTOBUF;}
+
+	/*try to read the file asked */
+	if(pread(bq.unixfd, bfpage_entry->fpage.pagebuf, PAGE_SIZE, ((bq.pagenum))*PAGE_SIZE) == -1){
+		return BFE_INCOMPLETEREAD;
+	}
 
 	/*value returned to the user */
 	(*fpage) = &(bfpage_entry->fpage);
@@ -212,25 +218,26 @@ int BF_UnpinBuf(BFreq bq){
  */
 
 int BF_TouchBuf(BFreq bq){
-    BFpage* page;
-
+   BFhash_entry* ht_entry;
+     
     /* pointer on the page is get by using hastable */
-    page=(ht_get(ht, bq.fd, bq.pagenum))->bpage;
+    ht_entry=(ht_get(ht, bq.fd, bq.pagenum));
 
     /* page has to be pinned */
-    if(page==NULL) return BFE_HASHNOTFOUND;
-    if(page->count==0) return BFE_UNPINNEDPAGE;
+    if(ht_entry==NULL) return BFE_HASHNOTFOUND;
+    if(ht_entry->bpage==0) return BFE_UNPINNEDPAGE;
     
     /* page is marked as dirty */
-    page->dirty=TRUE;  
+    ht_entry->bpage->dirty=TRUE;  
     /* page has to be head of the list */
-    return lru_mtu(lru, page);
+    return lru_mtu(lru, ht_entry->bpage);
 }
 
 /*
  * Dev : Paul
  */
-int BF_FlushBuf(int fd){
+int BF_FlushBuf(int fd){ /******************************************/
+	int cpt = 0;
 
 	BFpage* pt;
 	BFpage* prev; /* when the page will be add in free list, her prevpage pointer will be set to null, we need this variable to copy it before*/
@@ -244,7 +251,7 @@ int BF_FlushBuf(int fd){
 
 	do{
 	     if ( pt->fd==fd){
-
+			
 		 if(pt->count==0){ 
 
 			/* to remove from the lru list,to change pointer is enough */ 
@@ -299,10 +306,12 @@ int BF_FlushBuf(int fd){
 		}
 	   }
 		
-	     pt=prev;
-
+	   
+		
+		
+		  pt=prev;
 	}while(pt!=NULL); /*stop the loop after the head*/
-
+	
 	return BFE_OK; /*every page of the file which were in the LRU list, are now in the free list*/
 	
   
