@@ -9,6 +9,7 @@ PFftab_ele *PFftab;
 size_t PFftab_length;
 
 
+
 /*
  * Init the PF layer and also the BF layer by BF_Init
  * Creates and initialized the PFftab: file table of PFfile
@@ -17,15 +18,12 @@ size_t PFftab_length;
 void PF_Init(void){
 	PFftab=malloc(sizeof(PFftab_ele)*PF_FTAB_SIZE); //PFftab is an array of PF_FTAB_SIZE PFf_tabe_ele elements. 
 	PFftab_length=0; // the file table is still empty;
-
 	BF_Init();
 	
 	
 }
 
-
 /*
- * 
  * Creates File and then create pffile table entry, writes the header of the file and close it.
  * Dev : Paul
  */
@@ -37,7 +35,6 @@ int PF_CreateFile(char *filename){
 	int PFfd=0;
 	ino_t inode;
 	PFftab_ele* pt=(PFftab+sizeof(PFftab_ele)*PFftab_length);
-	
 	
 	fd=open(filename, O_CREAT,O_RDWR);
 	
@@ -64,12 +61,7 @@ int PF_CreateFile(char *filename){
 	
 	/* hdrchanged is false, because next step is the copy of the header in the first page of the file*/
 
-
-
 }
-
-
-	
 
 /*
  * This function destroys the file filename. The file should have existed, and should not be already 
@@ -82,6 +74,23 @@ int PF_DestroyFile (char *filename) {
 	}
 	return -1; // TODO better error code?
 }
+
+/*
+ *
+ *Dev: Antoine
+ */
+
+int PF_OpenFile (char *filename)
+
+/*
+ *
+ *Dev: Antoine
+ */
+
+int PF_CloseFile (int fd)
+
+
+
 
 
 /* 
@@ -103,6 +112,50 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	 
 }
 
+
+/*
+ *
+ *Dev: Paul
+ */
+
+int PF_GetNextPage (int fd, int *pageNum, char **pagebuf){}
+
+/*
+ *
+ *Dev: Paul
+ */
+
+
+int PF_GetFirstPage (int fd, int *pageNum, char **pagebuf){}
+
+/*
+ *
+ *Dev: Paul 
+ */
+
+
+int PF_GetThisPage (int fd, int *pageNum, char **pagebuf){}
+
+
+/*
+ *
+ *Dev: Antoine 
+ */
+int PF_DirtyPage(int fd, int pageNum){}
+
+
+
+
+/* 
+ *After checking the validity of the fd and pageNum values, this function unpins the page numbered pageNum of the file with file descriptor     *fd.  Besides, if the argument dirty is TRUE, the page is marked dirty. This function returns PFE_OK if the operation is successful, an error   *condition otherwise.
+ * 
+ *Dev Patric
+ */
+
+int PF_UnpinPage(int fd, int pageNum, int dirty){}
+
+    
+ 
 
 
 
