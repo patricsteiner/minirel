@@ -1,7 +1,14 @@
 #include <stdio.h>
 #include <unistd.h>
-#include "bf.h"
+#include <stdlib.h>
+#include <fcntl.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "minirel.h"
+#include "bf.h"
+#include "bfUtils.h"
+#include "pf.h"
 #include "pfHeader.h"
 
 
@@ -16,8 +23,8 @@ size_t PFftab_length;
  * Dev : Paul
  */
 void PF_Init(void){
-	PFftab=malloc(sizeof(PFftab_ele)*PF_FTAB_SIZE); //PFftab is an array of PF_FTAB_SIZE PFf_tabe_ele elements. 
-	PFftab_length=0; // the file table is still empty;
+	PFftab=malloc(sizeof(PFftab_ele)*PF_FTAB_SIZE); /*PFftab is an array of PF_FTAB_SIZE PFf_tabe_ele elements. */ 
+	PFftab_length=0; /*the file table is still empty;*/
 	BF_Init();
 	
 	
@@ -31,33 +38,38 @@ void PF_Init(void){
 
 
 int PF_CreateFile(char *filename){
-	int unixfd=0;
-	int PFfd=0;
+	int unixfd;
+	int PFfd;
 	ino_t inode;
-	PFftab_ele* pt=(PFftab+sizeof(PFftab_ele)*PFftab_length);
+	int fd;
+	int ret;  
+	struct stat file_stat;  
+	PFftab_ele* pt;
+
+	unixfd=0;
+	PFfd=0;
+	pt=(PFftab+sizeof(PFftab_ele)*PFftab_length);
 	
 	fd=open(filename, O_CREAT,O_RDWR);
 	
 	if (fd < 0) {  
-	    // problem occurred while opening the file
+	    /* problem occurred while opening the file */
 	    perror("Error opening the file");
 	}   
         /* inode number is necessary to create PFftab entry */
 
-	struct stat file_stat;  
-	int ret;  
 	ret = fstat(fd, &file_stat);  
 	inode = file_stat.st_ino; 
 	
 	/*fill the next array of the PF file table*/
 	pt->valid=TRUE;
 	pt->inode=inode;
-	snprintf(pt->fname,  sizeof(filename),"%s", filename);/////////////////////////////////à tester///////////////////
+	snprintf(pt->fname,  sizeof(filename),"%s", filename);/* à tester */
 	pt->unixfd=unixfd;
-	pt->hdr->numpages=0;
-	pt->hdrchanged=false; 
+	pt->hdr.numpages=0;
+	pt->hdrchanged=FALSE; 
 	
-	lengh
+	/* lengh */
 	
 	/* hdrchanged is false, because next step is the copy of the header in the first page of the file*/
 
@@ -69,25 +81,37 @@ int PF_CreateFile(char *filename){
  * Dev: Patric
  */
 int PF_DestroyFile (char *filename) {
-	if (access(filename, F_OK) != -1) { // if file exists
+	if (access(filename, F_OK) != -1) { /* if file exists */
 		return (unlink(filename));
 	}
-	return -1; // TODO better error code?
+	return -1; /* TODO better error code? */
 }
 
 /*
- *
- *Dev: Antoine
+ * This function opens the file named filename using the system call open(), and reads in the file header.
+ * Then, the fields in the file table entry are filled accordingly and the index of the file table entry is returned.
+ * This function returns a PF file descriptor if the operation is successful, an error condition otherwise.
+ * Dev: Antoine
  */
 
-int PF_OpenFile (char *filename)
+int PF_OpenFile (char *filename){
+	return 0;
+}
 
 /*
- *
+ * This function closes the file associated with PF file descriptor fd
+ * This entailes releasing all the buffer pages belonging to the file from the LRU list to the free list.
+ * Meanwhile, dirty pages must be written back to the file if any.
+ * All the buffer pages of a file must have been unpinned in order for the file to be closed successfully.
+ * If the file header has changed, it is written back to the file. 
+ * The file is finally closed by using the system call close(). The file table entry corresponding to the file is freed. 
+ * This function returns PFE_OK if the operation is successful, an error condition otherwise.
  *Dev: Antoine
  */
 
-int PF_CloseFile (int fd)
+int PF_CloseFile (int fd) {
+	return 0;
+}
 
 
 
@@ -107,8 +131,9 @@ int PF_CloseFile (int fd)
  * Dev: Patric
  */
 int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
-	&pagenum = ++PFftab[fd]->hdr->numpages; /* allocate a new page in given file */
-	PFftab[fd]->hdrchanged = TRUE;
+	/*&pagenum = ++PFftab[fd]->hdr->numpages; *//* allocate a new page in given file */
+	/*PFftab[fd]->hdrchanged = TRUE;*/
+
 	 
 }
 
@@ -134,14 +159,15 @@ int PF_GetFirstPage (int fd, int *pageNum, char **pagebuf){}
  */
 
 
-int PF_GetThisPage (int fd, int *pageNum, char **pagebuf){}
+int PF_GetThisPage (int fd, int pageNum, char **pagebuf){}
 
 
 /*
- *
+ * After checking the validity of the fd and pageNum values, this function marks the page associated with pageNum and fd dirty. 
+ * It returns PFE_OK if the operation is successful, an error condition otherwise.
  *Dev: Antoine 
  */
-int PF_DirtyPage(int fd, int pageNum){}
+int PF_DirtyPage(int fd, int pageNum){return PFE_OK;}
 
 
 
@@ -155,9 +181,11 @@ int PF_DirtyPage(int fd, int pageNum){}
 int PF_UnpinPage(int fd, int pageNum, int dirty){}
 
     
- 
+ /*
+  * Used in pftest.c
+  */
 
-
+void PF_PrintError (char *error){}
 
 
 
