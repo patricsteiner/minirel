@@ -344,22 +344,14 @@ int ht_remove(Hashtable* ht, int fd, int pagenum) {
 	} 
 	else{
 		if (prev != NULL && next == NULL) { /* when last entry in bucket */
-			
 			prev->nextentry = NULL;
 		}
-		else {
-			/* when first entry in bucket */
-			
-				
+		else { /* when first entry in bucket */
 			ht->entries[hc] = next;
-			
-			if( next!=NULL)next->preventry=NULL; /* next becomes the first entry */
-				
-				
-			
+			if(next != NULL ) next->preventry = NULL; /* next becomes the first entry */
 		}
 	}
-	/* need a free */
+	free(e);
 	return 0;
 }
 
