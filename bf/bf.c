@@ -7,17 +7,11 @@
 #include "bf.h"
 
 /*
- * Constants freelist, hashtable, lru
- * Waiting for an answer of the teacher (question was : can we add some code into the headers he provided us ?)
- */ 
-
+ * globally used data structures: freelist, hashtable and lru
+ */
 Freelist* fl;
 LRU* lru;
 Hashtable* ht;
-
-
-	
-
 
 /*
  * Init the BF layer
@@ -27,21 +21,19 @@ Hashtable* ht;
  */
 void BF_Init(void){
 	/*
-	 * How to do the error_handling ? 
+	 * TODO How to do the error_handling ? 
 	 */
 	fl = fl_init(BF_MAX_BUFS); /*buffer entries malloc in the fl_function*/
 	lru = lru_init();
 	ht = ht_init(BF_HASH_TBL_SIZE);
 }
 
-
 /*
- *FlushPage: -find a victim, flush it in disk dive if it is dirty 
- *	     -remove it from hastable and add a new page in free
- *	     - used in BF_GetBuf and BF_AllocBuf
- *Dev:Paul
+ * -find a victim, flush it in disk dive if it is dirty 
+ * -remove it from hastable and add a new page in free
+ * -used in BF_GetBuf and BF_AllocBuf
+ * Dev:Paul
  */
-
 int BF_FlushPage(LRU* lru){
 	BFpage* victim;
 	int res; 
@@ -68,14 +60,12 @@ int BF_FlushPage(LRU* lru){
 		printf("not found in hashtable \n");
 		return res;
 	} 
-	res=fl_add(fl, victim);	
+	res = fl_add(fl, victim);	
 	if(res != 0){
 		printf("fl add \n");
 		return res;
 	} 
 }	
-
-
 
 /*
  * Unlike BF_GetBuf(), this function is used in situations where a new page is 
@@ -91,31 +81,23 @@ int BF_FlushPage(LRU* lru){
  * Dev : Patric
  */
 int BF_AllocBuf(BFreq bq, PFpage **fpage){
-	/* PFpage needs to be filled, the params pass through bq : ht_get(ht, bq.fd, bq.pagenum)
-	 * pedantic : variables needs to be declared and assigned in different lines
-	 */
 	BFhash_entry* e;
 	BFpage* page;
-	
 	int res;
 
 	e = ht_get(ht, bq.fd, bq.pagenum);
-	
 	if (e != NULL) {
 		return BFE_PAGEINBUF; /* it is a new page, so it must not be in buffer yet */
 	}
 	page = fl_give_one(fl);
 	if (page == NULL) { /* there is no free page, need to replace one (aka find victim) */
-		
 		/* remove a victim in lru and add a new page in the freelist */
 		res = BF_FlushPage(lru);
 		if(res != 0){
 			return res;
 		} 
-
 		/* we use this new page */
 		page = fl_give_one(fl);	
-		
 	}
 
 	page->count = 1;
@@ -165,16 +147,12 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 		bfpage_entry = fl_give_one(fl);
 	}
 	
-
 	/*set the correct parameters */
 	bfpage_entry->count = 1;
 	bfpage_entry->dirty = FALSE;
 	bfpage_entry->fd = bq.fd;
 	bfpage_entry->pagenum = bq.pagenum;
 	bfpage_entry->unixfd = bq.unixfd;
-
-
-
 
 	/* add page to LRU and HT */
 	if(lru_add(lru, bfpage_entry) == BFE_OK && ht_add(ht, bfpage_entry) == BFE_OK){
@@ -202,7 +180,7 @@ int BF_UnpinBuf(BFreq bq){
 	
 	ht_entry = (ht_get(ht, bq.fd, bq.pagenum)); 
 	if (ht_entry == NULL ) { /* must be pinned */
-		return BFE_PAGENOTINBUF; /*TODO return what?*/
+		return BFE_PAGENOTINBUF;
 	}
 	if(ht_entry->bpage->count<1) return BFE_UNPINNEDPAGE;
 	ht_entry->bpage->count = ht_entry->bpage->count - 1;
@@ -216,115 +194,92 @@ int BF_UnpinBuf(BFreq bq){
  * returns BFE_OK if the operation is successful, an error condition otherwise.
  * Dev : Paul
  */
-
 int BF_TouchBuf(BFreq bq){
    BFhash_entry* ht_entry;
      
     /* pointer on the page is get by using hastable */
-    ht_entry=(ht_get(ht, bq.fd, bq.pagenum));
+    ht_entry = (ht_get(ht, bq.fd, bq.pagenum));
 
     /* page has to be pinned */
-    if(ht_entry==NULL) return BFE_HASHNOTFOUND;
-    if(ht_entry->bpage==0) return BFE_UNPINNEDPAGE;
+    if(ht_entry == NULL) return BFE_HASHNOTFOUND;
+    if(ht_entry->bpage == 0) return BFE_UNPINNEDPAGE;
     
     /* page is marked as dirty */
-    ht_entry->bpage->dirty=TRUE;  
+    ht_entry->bpage->dirty = TRUE;  
     /* page has to be head of the list */
     return lru_mtu(lru, ht_entry->bpage);
 }
 
 /*
+ * Writes all the pages with given fd to disk.
  * Dev : Paul
  */
-int BF_FlushBuf(int fd){ /******************************************/
+int BF_FlushBuf(int fd){
 	int cpt = 0;
-
 	BFpage* pt;
 	BFpage* prev; /* when the page will be add in free list, her prevpage pointer will be set to null, we need this variable to copy it before*/
-	
 	int ret; /* used to recuperate return values */
 	
 	/* start checking with the tail, until the head */
-	
-	if (lru->tail==NULL) return BFE_OK; /*empty list case*/
-	pt= lru->tail;
-
-	do{
-	     if ( pt->fd==fd){
-			
-		 if(pt->count==0){ 
-
+	if (lru->tail == NULL) return BFE_OK; /*empty list case*/
+	pt = lru->tail;
+	do {
+	     if ( pt->fd == fd){
+		 if(pt->count == 0){ 
 			/* to remove from the lru list,to change pointer is enough */ 
 			if (pt != lru->head){
-	  
-				if(pt!=lru->tail) {
-					pt->prevpage->nextpage=pt->nextpage; 
-					pt->nextpage->prevpage=pt->prevpage;
+				if(pt != lru->tail) {
+					pt->prevpage->nextpage = pt->nextpage; 
+					pt->nextpage->prevpage = pt->prevpage;
 				 }
-			
 				else{	
-					pt->prevpage->nextpage=NULL;/*tail removed ==> the page before tail becomes the tail	*/	
+					pt->prevpage->nextpage = NULL;/*tail removed ==> the page before tail becomes the tail	*/	
 					lru->tail=pt->prevpage;
 				}
 			}
 			else{
-				if(pt!=lru->tail) {
-						pt->nextpage->prevpage=NULL;/* head removed ==> next page becomes head */
+				if(pt != lru->tail) {
+						pt->nextpage->prevpage = NULL;/* head removed ==> next page becomes head */
 						lru->head=pt->nextpage;
 				 }
 				else{/* the head is the tail */
-					lru->head=NULL;
-					lru->tail=NULL;
+					lru->head = NULL;
+					lru->tail = NULL;
 				}
 			}
+			/* if page is dirty, we write it on the disk */
+			if (pt->dirty){
+				ret = pwrite(pt->unixfd,pt->fpage.pagebuf, PAGE_SIZE, PAGE_SIZE*((pt->pagenum)));
 
-
-			/************  if page is dirty, we write it on the disk             *********************************/
-			if(pt->dirty){
-				ret=pwrite(pt->unixfd,pt->fpage.pagebuf, PAGE_SIZE, PAGE_SIZE*((pt->pagenum)));
-
-				if(ret<0){
+				if (ret < 0){
 					printf("unix \n");
 					return BFE_UNIX;
 				}
-				if(PAGE_SIZE>ret){
+				if (PAGE_SIZE > ret){
 					printf("incomp \n");
 					return BFE_INCOMPLETEWRITE;
 				}			
-
 			}
-			/************ page is removed, next step add it to the free list ********************************/
-
+			/* page is removed, next step add it to the free list */
 			lru->number_of_page-=1;
-			prev=pt->prevpage;
+			prev = pt->prevpage;
 			ht_remove(ht, pt->fd, pt->pagenum);
 			fl_add(fl, pt);
 		}
-
 		else { /* the page is still pinned */
  			return BFE_PINNEDPAGE; 
 		}
-	   }
-		
-	   
-		
-		
-		  pt=prev;
-	}while(pt!=NULL); /*stop the loop after the head*/
-	
-	return BFE_OK; /*every page of the file which were in the LRU list, are now in the free list*/
-	
-  
+	}
+	pt = prev;
+	} while (pt != NULL); /*stop the loop after the head*/
 
+	return BFE_OK; /*every page of the file which were in the LRU list, are now in the free list*/
 }
 
 /*
+ * prints the content of the lru list
  * Dev : Paul
- * 
  */
 void BF_ShowBuf(){
 	lru_print(lru);
-
 }
-
-

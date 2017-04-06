@@ -296,8 +296,7 @@ int ht_add(Hashtable* ht, BFpage* page) {
 
 	hc = ht_hashcode(ht, page->fd, page->pagenum);
 	if (ht_get(ht, page->fd, page->pagenum) != NULL) {
-		return -1; /* entry already in hashtable : */
-		/* must return a int not a null pointer*/
+		return BFE_HASHPAGEEXIST; /* entry already in hashtable */
 	}
 	else { /* entry needs to be created and inserted */
 		newEntry = malloc(sizeof(BFhash_entry));
@@ -318,7 +317,7 @@ int ht_add(Hashtable* ht, BFpage* page) {
 			entry->nextentry = newEntry;
 		}
 	}
-	return 0;
+	return BFE_OK;
 }
 
 int ht_remove(Hashtable* ht, int fd, int pagenum) {
@@ -330,15 +329,12 @@ int ht_remove(Hashtable* ht, int fd, int pagenum) {
 	hc = ht_hashcode(ht, fd, pagenum);
 	e = ht_get(ht, fd, pagenum);
 	if (e == NULL) {
-		printf("looking for fd %d pagenum %d ", fd, pagenum);
-		
-		return -1; /* not found */
+		return BFE_HASHNOTFOUND; /* not found */
 	}
 	prev = e->preventry;
 	next = e->nextentry;
 	
 	if (prev != NULL && next != NULL) { /* between two entries */
-	
 		prev->nextentry = next;
 		next->preventry = prev;
 	} 
@@ -352,7 +348,7 @@ int ht_remove(Hashtable* ht, int fd, int pagenum) {
 		}
 	}
 	free(e);
-	return 0;
+	return BFE_OK;
 }
 
 BFhash_entry* ht_get(Hashtable* ht, int fd, int pagenum) {
@@ -383,6 +379,7 @@ int ht_free(Hashtable* ht) {
 		ht->entries[i] = NULL;
 	}
 	free(ht);
+	return BFE_OK;
 }
 
 void ht_print(Hashtable* ht) {
