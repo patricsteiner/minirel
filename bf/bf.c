@@ -13,6 +13,40 @@ Freelist* fl;
 LRU* lru;
 Hashtable* ht;
 
+
+/*
+ *Error Handler, print a message related to the error code
+ *
+ */
+
+void BF_ErrorHandler( int error_code){
+	switch( error_code){
+		case BFE_HASHNOTFOUND: printf("\n BF: the page is not (found) in hashtable \n"); break;
+		
+		case BFE_UNIX: printf( " \nBF: pwrite or pread has returned an error \n\n ");break;
+
+		case BFE_INCOMPLETEREAD: printf( " \n BF:the copy from disk dive to pfpage has failed ( incomplete read )  \n\n ");break;
+
+		case BFE_INCOMPLETEWRITE: printf(" \n BF:the copy in the disk dive has failed ( incomplete write ) \n\n ");break;
+
+		case BFE_PINNEDPAGE:printf(" \n BF: the page is pinned, impossible to flush it! \n\n");break;
+
+		case BFE_UNPINNEDPAGE: printf( " \n BF: a dirty page or a still used page has is pin < 1 \n\n");break;
+
+		case BFE_PAGEINBUF: printf("\n BF: the page is in buffer pool ( find in ht), should be a new page! \n\n"); break;
+		
+		case BFE_PAGENOTINBUF: printf("\n BF: page not in the buffer as it should be \n\n"); break;
+		
+		case BFE_PAGENOTOBUF: printf("\n BF: page not added to buffer pool (error in lru_add or ht_add ) \n\n"); break;
+
+		case BFE_NOBUF: printf("\n BF: empty lru ( BFE_NOBUF) \n\n"); break;
+
+		case BFE_OK: printf( "\n BF: error handler called but no error \n\n "); break;
+
+		default: printf( " \n  BF: unused error code : %d \n\n ", error_code);break; 
+	}
+	exit(-1);
+}
 /*
  * Init the BF layer
  * Creates all the buffer entries and add them to the freelist
@@ -42,14 +76,15 @@ int BF_FlushPage(LRU* lru){
 	res = lru_remove(lru, &victim);	
         /*no victim found */	
 	if(res != 0){
-		return res;
+		BF_ErrorHandler(res);
 	} 
 
 	/*victim found */	
 	/*victim dirty : try to flush it, trhow error otherwise */
 	if(victim->dirty == TRUE){
 		if(pwrite(victim->unixfd, victim->fpage.pagebuf, PAGE_SIZE, ((victim->pagenum))*PAGE_SIZE) != PAGE_SIZE){
-			return BFE_INCOMPLETEWRITE;
+
+			BF_ErrorHandler( BFE_INCOMPLETEWRITE);
 		}
 	}
 	
@@ -57,13 +92,13 @@ int BF_FlushPage(LRU* lru){
 	res=ht_remove(ht, victim->fd, victim->pagenum);
 
 	if(res != 0){
-		printf("not found in hashtable \n");
-		return res;
+		
+		BF_ErrorHandler( res);
 	} 
 	res = fl_add(fl, victim);	
 	if(res != 0){
-		printf("fl add \n");
-		return res;
+		
+		BF_ErrorHandler(res);
 	} 
 }	
 
@@ -87,14 +122,14 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 
 	e = ht_get(ht, bq.fd, bq.pagenum);
 	if (e != NULL) {
-		return BFE_PAGEINBUF; /* it is a new page, so it must not be in buffer yet */
+		BF_ErrorHandler( BFE_PAGEINBUF); /* it is a new page, so it must not be in buffer yet */
 	}
 	page = fl_give_one(fl);
 	if (page == NULL) { /* there is no free page, need to replace one (aka find victim) */
 		/* remove a victim in lru and add a new page in the freelist */
 		res = BF_FlushPage(lru);
 		if(res != 0){
-			return res;
+			BF_ErrorHandler (res);
 		} 
 		/* we use this new page */
 		page = fl_give_one(fl);	
@@ -110,8 +145,16 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 
 	*fpage = &page->fpage;
 
-	ht_add(ht, page);
-	return lru_add(lru, page);
+	res=ht_add(ht, page);
+	if(res != 0){
+		BF_ErrorHandler(res);
+	} 
+	
+	res=lru_add(lru, page);
+	if(res != 0){
+		BF_ErrorHandler(res);
+	} 
+	return BFE_OK;
 }
 
 /*
@@ -131,6 +174,10 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 		printf( " ce que me donne la ht  %d , %d \n" , h_entry->bpage->fd, h_entry->bpage->pagenum);
 		h_entry->bpage->count += 1;
 		(*fpage) = &(h_entry->bpage->fpage);
+		res=lru_mtu(lru, h_entry->bpage); /* the page become the most recently used page */
+		if(res != 0){
+			BF_ErrorHandler(res);
+		} 
 		return BFE_OK;
 	}
 
@@ -142,7 +189,7 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 		
 		/* remove a victim in lru and add a page in the freelist */
 		res=BF_FlushPage(lru);
-		if(res != BFE_OK) return res;
+		if(res != BFE_OK) BF_ErrorHandler(res);
 
 		bfpage_entry = fl_give_one(fl);
 	}
@@ -156,11 +203,11 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 
 	/* add page to LRU and HT */
 	if(lru_add(lru, bfpage_entry) == BFE_OK && ht_add(ht, bfpage_entry) == BFE_OK){
-	}else{return BFE_PAGENOTOBUF;}
+	}else{BF_ErrorHandler( BFE_PAGENOTOBUF);}
 
 	/*try to read the file asked */
 	if(pread(bq.unixfd, bfpage_entry->fpage.pagebuf, PAGE_SIZE, ((bq.pagenum))*PAGE_SIZE) == -1){
-		return BFE_INCOMPLETEREAD;
+		BF_ErrorHandler( BFE_INCOMPLETEREAD);
 	}
 
 	/*value returned to the user */
@@ -180,9 +227,9 @@ int BF_UnpinBuf(BFreq bq){
 	
 	ht_entry = (ht_get(ht, bq.fd, bq.pagenum)); 
 	if (ht_entry == NULL ) { /* must be pinned */
-		return BFE_PAGENOTINBUF;
+		BF_ErrorHandler(BFE_PAGENOTINBUF);
 	}
-	if(ht_entry->bpage->count<1) return BFE_UNPINNEDPAGE;
+	if(ht_entry->bpage->count<1) BF_ErrorHandler ( BFE_UNPINNEDPAGE);
 	ht_entry->bpage->count = ht_entry->bpage->count - 1;
 	return BFE_OK;
 }
@@ -195,19 +242,23 @@ int BF_UnpinBuf(BFreq bq){
  * Dev : Paul
  */
 int BF_TouchBuf(BFreq bq){
-   BFhash_entry* ht_entry;
-     
+    BFhash_entry* ht_entry;
+    int res;
+ 
     /* pointer on the page is get by using hastable */
     ht_entry = (ht_get(ht, bq.fd, bq.pagenum));
 
     /* page has to be pinned */
-    if(ht_entry == NULL) return BFE_HASHNOTFOUND;
-    if(ht_entry->bpage == 0) return BFE_UNPINNEDPAGE;
+    if(ht_entry == NULL) BF_ErrorHandler( BFE_HASHNOTFOUND);
+    if(ht_entry->bpage->count < 1) BF_ErrorHandler( BFE_UNPINNEDPAGE);
     
     /* page is marked as dirty */
     ht_entry->bpage->dirty = TRUE;  
     /* page has to be head of the list */
-    return lru_mtu(lru, ht_entry->bpage);
+    res=lru_mtu(lru, ht_entry->bpage);
+    if(res != BFE_OK) BF_ErrorHandler(res);
+
+    return BFE_OK;
 }
 
 /*
@@ -253,11 +304,11 @@ int BF_FlushBuf(int fd){
 
 				if (ret < 0){
 					printf("unix \n");
-					return BFE_UNIX;
+					BF_ErrorHandler(BFE_UNIX);
 				}
 				if (PAGE_SIZE > ret){
 					printf("incomp \n");
-					return BFE_INCOMPLETEWRITE;
+					BF_ErrorHandler( BFE_INCOMPLETEWRITE);
 				}			
 			}
 			/* page is removed, next step add it to the free list */
@@ -267,7 +318,7 @@ int BF_FlushBuf(int fd){
 			fl_add(fl, pt);
 		}
 		else { /* the page is still pinned */
- 			return BFE_PINNEDPAGE; 
+ 			BF_ErrorHandler( BFE_PINNEDPAGE); 
 		}
 	}
 	pt = prev;
