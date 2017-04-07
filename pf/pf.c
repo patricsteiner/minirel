@@ -95,7 +95,51 @@ int PF_DestroyFile (char *filename) {
  */
 
 int PF_OpenFile (char *filename){
-	return 0;
+	BFreq bq;
+	PFpage* fpageHeader;
+	struct stat file_stat;
+	int res, fd, unixfd;
+	PFftab_ele* pt;
+
+	if(PFftab_length>=PF_FTAB_SIZE){
+		return PFE_FTABFULL;
+	}
+
+	if ((unixfd = open(filename, O_RDWR))<0){
+		printf("open failed: %s", filename);
+		return PFE_FILENOTOPEN;
+    }
+
+   	/* prepare buffer request */
+    bq.unixfd = unixfd;
+    bq.fd = PFftab_length ; 
+    bq.pagenum = 0; /*header is the first page of a file */
+    bq.dirty = FALSE;
+
+    res = BF_GetBuf(bq, &fpageHeader);
+    if(res != BFE_OK){return PFE_GETBUF;}
+
+    /* prepare new entry */
+    pt=(PFftab+sizeof(PFftab_ele)*PFftab_length);
+
+    /* get inode */
+    if(fstat(unixfd, &file_stat)) {
+    	close(unixfd);
+        return PFE_UNIX;
+    } 
+    
+    /* fill the new entry */
+    pt->valid = TRUE;
+    pt->inode = file_stat.st_ino;
+    pt->fname = filename;
+    pt->unixfd = unixfd;
+    pt->hdr.numpages = atoi(fpageHeader->pagebuf);
+    pt->hdrchanged = FALSE;
+
+    PFftab_length++; /* for next entry */
+
+    printf("\nThe file '%s' containing %d pages has been added to the PFtable.\n", filename, pt->hdr.numpages);
+	return fd;
 }
 
 /*
@@ -109,8 +153,35 @@ int PF_OpenFile (char *filename){
  *Dev: Antoine
  */
 
+/* 
+ * Question : what to do with the free space in the PFftab, and length ? free 
+ */
+
 int PF_CloseFile (int fd) {
-	return 0;
+	PFftab_ele* pt;
+	int unixfd, error, ret;
+
+	pt = (PFftab + sizeof(PFftab_ele)*fd);
+	unixfd = pt->unixfd; /* to close the file */
+
+	if(pt->hdrchanged=TRUE){
+		/* TODO */
+		/* write to the file header the new number of pages (pt->hdr.numepages) (cast integer to char) */
+	}
+
+	/* check if all pages are unpinned before deleting it : already managed into flushbuf */
+	ret = BF_FlushBuf(fd);
+	if(ret != BFE_OK){
+	 return ret;
+	}
+
+
+	if ((error = close(unixfd)) < 0) {
+		printf("close failed for file '%s'", pt->fname);
+		return PFE_UNIX;
+    }
+    printf("\nThe file '%s' containing %d pages has been closed.\n", pt->fname, pt->hdr.numpages);
+	return BFE_OK;
 }
 
 

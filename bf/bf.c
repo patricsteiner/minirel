@@ -183,6 +183,7 @@ int BF_UnpinBuf(BFreq bq){
 		return BFE_PAGENOTINBUF;
 	}
 	if(ht_entry->bpage->count<1) return BFE_UNPINNEDPAGE;
+	
 	ht_entry->bpage->count = ht_entry->bpage->count - 1;
 	return BFE_OK;
 }
