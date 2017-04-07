@@ -41,39 +41,82 @@ int PF_CreateFile(char *filename){
 	int unixfd;
 	int PFfd;
 	ino_t inode;
-	int fd;
 	int ret;  
 	struct stat file_stat;  
 	PFftab_ele* pt;
+	PFhdr_str* hdr;
+	
+	/*parameters for calling BF_Layer*/
+	PFpage* fpage;
+	BFreq breq;
+
 
 	unixfd=0;
 	PFfd=0;
-	pt=(PFftab+sizeof(PFftab_ele)*PFftab_length);
 	
-	fd=open(filename, O_CREAT,O_RDWR);
 	
-	if (fd < 0) {  
+	unixfd=open(filename, O_CREAT|O_RDWR);
+	
+	if (unixfd < 0) {  
 	    /* problem occurred while opening the file */
-	    perror("Error opening the file");
+	    return PFE_FILENOTOPEN;
 	}   
         /* inode number is necessary to create PFftab entry */
 
-	ret = fstat(fd, &file_stat);  
+	ret = fstat(unixfd, &file_stat);  
+	if (ret!=0) return PFE_UNIX; 
+
 	inode = file_stat.st_ino; 
 	
 	/*fill the next array of the PF file table*/
+	pt=(PFftab+sizeof(PFftab_ele)*PFftab_length);
+
 	pt->valid=TRUE;
 	pt->inode=inode;
 	snprintf(pt->fname,  sizeof(filename),"%s", filename);/* à tester */
 	pt->unixfd=unixfd;
-	pt->hdr.numpages=0;
+	pt->hdr.numpages=1; /* first page is for the header */
 	pt->hdrchanged=FALSE; 
 	
-	/* lengh */
-	
-	/* hdrchanged is false, because next step is the copy of the header in the first page of the file*/
+	/* pf file descriptor is the index in the table */
+	PFfd=PFftab_length;
+	PFftab_length++;
+	hdr->numpages=1;
 
-}
+
+	/* hdrchanged is false, because next step is the copy of the header in the first page of the file*/
+	/* file header is written in the first page of the file */
+	breq.fd=PFfd;
+	breq.unixfd=unixfd;
+	breq.pagenum=0;
+	breq.dirty=FALSE;
+	
+	ret=BF_AllocBuf(breq, &fpage);
+	if(ret!=0) BF_ErrorHandler(ret);/*print a chosen string and then exit */
+	
+	snprintf(fpage->pagebuf, PAGE_SIZE ,"%d", hdr->numpages); /*all the page is for header of file == number of pages in the page.*/
+	breq.dirty=TRUE;
+
+	ret=BF_TouchBuf(breq); /* page is dirty */
+	if(ret!=0) BF_ErrorHandler(ret);
+
+	ret= BF_UnpinBuf(breq); /* page has pinned to 0 now, we can flush the file */
+	if(ret!=0) BF_ErrorHandler(ret);
+
+	ret= BF_FlushBuf(PFfd);
+	if(ret!=0) BF_ErrorHandler(ret); /* the header is on disk drive */
+	
+	/* final step close the file and remove it from PFftable*/
+	PFftab_length--; /* enough to remove it for the table */
+	
+	ret=close(unixfd);
+	
+	if (ret < 0) {  
+	    /* problem occurred while closing the file */
+	    return PFE_UNIX;
+	}   
+	return PFE_OK;
+}	
 
 /*
  * This function destroys the file filename. The file should have existed, and should not be already 
@@ -210,27 +253,90 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 
 
 /*
- *
+ *Get the page after pagenum and return *pagenum+1
  *Dev: Paul
  */
 
-int PF_GetNextPage (int fd, int *pageNum, char **pagebuf){}
+int PF_GetNextPage (int fd, int *pageNum, char **pagebuf){
+	int ret;  
+	PFftab_ele* pt;
+		
+	/*parameters for calling BF_Layer*/
+	PFpage* fpage;
+	BFreq bq;
+	
+	
+	/* fill bq using PFftab_ele fields */
+	
+	pt=(PFftab+sizeof(PFftab_ele)*fd);
+	bq.fd=fd;
+	bq.unixfd=pt->unixfd;
+	bq.dirty=FALSE;
+	bq.pagenum=(*pageNum)+1;
+	
+	if( pt->hdr.numpages < (*pageNum)+1) return PFE_EOF; /* the wanted page does not exist */
+	
+	ret=BF_GetBuf(bq,&fpage);
+	if(ret!=0) BF_ErrorHandler(ret);
+	
+	*pagebuf= (fpage->pagebuf);
+	(*pageNum)++;
+	
+	return PFE_OK;
+
+
+
+}
 
 /*
- *
+ *Get the first page of the file ( the header) using PF_GetNextPage
  *Dev: Paul
  */
 
 
-int PF_GetFirstPage (int fd, int *pageNum, char **pagebuf){}
+int PF_GetFirstPage (int fd, int *pageNum, char **pagebuf){
+	
+	/* if first page wanted then pageNum has to -1 */
+	(*pageNum)=-1;
+	
+	return PF_GetNextPage(fd, pageNum, pagebuf);
+}
 
 /*
- *
+ *Get the page with this file descriptor and this page number
  *Dev: Paul 
  */
 
 
-int PF_GetThisPage (int fd, int pageNum, char **pagebuf){}
+int PF_GetThisPage (int fd, int pageNum, char **pagebuf){
+	int ret;  
+	PFftab_ele* pt;
+		
+	/*parameters for calling BF_Layer*/
+	PFpage* fpage;
+	BFreq bq;
+	
+	
+	/* fill bq using PFftab_ele fields */
+	
+	pt=(PFftab+sizeof(PFftab_ele)*fd);
+	bq.fd=fd;
+	bq.unixfd=pt->unixfd;
+	bq.dirty=FALSE;
+	bq.pagenum=pageNum;
+	
+	if( pt->hdr.numpages < pageNum) return PFE_EOF; /* the wanted page does not exist */
+	
+	ret=BF_GetBuf(bq,&fpage);
+	if(ret!=0) BF_ErrorHandler(ret);
+	
+	*pagebuf= (fpage->pagebuf);
+	
+	
+	return PFE_OK;
+
+
+}
 
 
 /*
@@ -238,7 +344,10 @@ int PF_GetThisPage (int fd, int pageNum, char **pagebuf){}
  * It returns PFE_OK if the operation is successful, an error condition otherwise.
  *Dev: Antoine 
  */
-int PF_DirtyPage(int fd, int pageNum){return PFE_OK;}
+int PF_DirtyPage(int fd, int pageNum){
+
+	return PFE_OK;
+}
 
 
 
