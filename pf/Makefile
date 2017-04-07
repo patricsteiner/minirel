@@ -16,6 +16,9 @@ CFLAGS	= -g -ansi -pedantic
 
 all: lib${LIB}.a ${LIB}test
 
+antoine:
+	$(CC) $(CFLAGS) pf.c pftest.c ../bf/bf.c ../bf/bfUtils.c -I ../h
+
 ${LIB}test: ${LIB}test.o ${LIBS}
 	$(CC) $(CFLAGS) -o $@ $< ${LIBS}
 

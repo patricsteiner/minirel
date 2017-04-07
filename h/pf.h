@@ -24,7 +24,7 @@ int  PF_GetNextPage	(int fd, int *pagenum, char **pagebuf);
 int  PF_GetThisPage	(int fd, int pagenum, char **pagebuf);
 int  PF_DirtyPage	(int fd, int pagenum);
 int  PF_UnpinPage	(int fd, int pagenum, int dirty);
-
+void PF_PrintError (char *error);
 /*
  * PF-layer error codes
  */
