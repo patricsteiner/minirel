@@ -22,6 +22,9 @@ antoinetest:
 antoine:
 	$(CC) $(CFLAGS) pftest.c pf.c ../bf/bf.c ../bf/bfUtils.c -I ../h
 
+patric:
+	$(CC) $(CFLAGS) pftest.c pf.c ../bf/bf.c ../bf/bfUtils.c -g -I ../h
+
 ${LIB}test: ${LIB}test.o ${LIBS}
 	$(CC) $(CFLAGS) -o $@ $< ${LIBS}
 

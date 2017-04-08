@@ -26,4 +26,14 @@ typedef struct PFftab_ele{
 	short hdrchanged; /*true if file header has changed */
 }PFftab_ele;
 
+
+/**********************************************************************************************/
+/*	More errors used for PF layer                                                                */
+/**********************************************************************************************/
+
+#define PFE_FILENOTEXISTS	-50
+#define PFE_FILENOTINTAB	-51
+
+
+
 #endif

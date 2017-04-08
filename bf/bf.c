@@ -136,7 +136,7 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 	}
 
 	page->count = 1;
-	page->dirty = FALSE;
+	page->dirty = TRUE; /* TODO it was FALSE before, but i think it needs to be TRUE... */
 	page->prevpage = NULL;
 	page->nextpage = NULL;
 	page->pagenum = bq.pagenum;

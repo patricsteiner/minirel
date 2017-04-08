@@ -124,10 +124,26 @@ int PF_CreateFile(char *filename){
  * Dev: Patric
  */
 int PF_DestroyFile (char *filename) {
-	if (access(filename, F_OK) != -1) { /* if file exists */
-		return (unlink(filename));
+	size_t i;
+	PFftab_ele* ftab_ele;
+	ftab_ele = NULL;
+	/* search for file in PFftab by filename*/
+	for (i = 0; i < PFftab_length; i++) {
+		if (strcmp(PFftab[i].fname, filename) == 0) {
+			ftab_ele = &PFftab[i]; /* found the page */
+			break;
+		}
 	}
-	return -1; /* TODO better error code? */
+	if (ftab_ele == NULL) { /* if file not in PFftab */
+		return PFE_FILENOTINTAB;
+	}
+	else if (ftab_ele->valid == TRUE) { /* if file open */
+		return PFE_FILEOPEN;
+	}
+	else if (access(filename, F_OK) == -1) { /* if file does not exist */
+		return PFE_FILENOTEXISTS;
+	}
+	else return unlink(filename); /* delete it */
 }
 
 /*
@@ -229,8 +245,6 @@ int PF_CloseFile (int fd) {
 
 
 
-
-
 /* 
  *    int     fd;          PF file descriptor
  *    int     *pageNum;    return the number of the page allocated
@@ -245,10 +259,31 @@ int PF_CloseFile (int fd) {
  * Dev: Patric
  */
 int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
-	/*&pagenum = ++PFftab[fd]->hdr->numpages; *//* allocate a new page in given file */
-	/*PFftab[fd]->hdrchanged = TRUE;*/
+	int new_pagenum;
+	BFreq bq;
+	PFpage* pfpage;
+	int error;
 
-	 
+	if (fd < 0 || fd >= PFftab_length) {
+		return PFE_FD;
+	}
+	/* TODO: appedned to end of the file? ...how to do that */
+	
+	new_pagenum = PFftab[fd].hdr.numpages + 1;	
+	/*alternate? way to get pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
+	bq.fd = fd;
+	bq.unixfd = PFftab[fd].unixfd;
+	bq.dirty = TRUE;
+	bq.pagenum = new_pagenum;
+	pfpage = malloc(sizeof(PFpage));
+	if ((error = BF_AllocBuf(bq, &pfpage)) != BFE_OK) {
+		return error;
+	}
+
+	/* update page info */
+	*pagenum = new_pagenum;
+	PFftab[fd].hdrchanged = TRUE;
+	return PFE_OK;
 }
 
 
@@ -350,15 +385,45 @@ int PF_DirtyPage(int fd, int pageNum){
 }
 
 
-
-
 /* 
- *After checking the validity of the fd and pageNum values, this function unpins the page numbered pageNum of the file with file descriptor     *fd.  Besides, if the argument dirty is TRUE, the page is marked dirty. This function returns PFE_OK if the operation is successful, an error   *condition otherwise.
- * 
- *Dev Patric
+ *    int     fd            PF file descriptor
+ *    int     pageNum       number of page to be unpinned
+ *    int     dirty         dirty indication
+ * After checking the validity of the fd and pageNum values, this function unpins the page 
+ * numbered pageNum of the file with file descriptor fd. Besides, if the argument dirty is TRUE, 
+ * the page is marked dirty. This function returns PFE_OK if the operation is successful, 
+ * an error condition otherwise.
+ * Dev: Patric
  */
-
-int PF_UnpinPage(int fd, int pageNum, int dirty){}
+int PF_UnpinPage(int fd, int pageNum, int dirty) {	
+	PFftab_ele* pfftab_ele;
+	BFreq bq;
+	int error;
+	if (fd < 0 || fd >= PFftab_length) {
+		return PFE_FD;
+	}
+	
+	pfftab_ele = &PFftab[fd];
+	/*alternate way to get pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
+	if (pageNum < 0 || pageNum >= pfftab_ele->hdr.numpages) {
+		return PFE_INVALIDPAGE;
+	}
+	
+	bq.fd = fd;
+	bq.unixfd = pfftab_ele->unixfd;
+	bq.dirty = dirty;
+	bq.pagenum = pageNum;
+	
+	if ((error = BF_UnpinBuf(bq)) != BFE_OK) {
+		return error;
+	}
+	if (dirty) { /* mark page as dirty when it should be dirty */
+		if ((error = BF_TouchBuf(bq)) != BFE_OK) {
+			return error;
+		}
+	}
+	return PFE_OK;
+}
 
     
  /*
