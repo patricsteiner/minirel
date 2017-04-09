@@ -375,15 +375,26 @@ int PF_GetThisPage (int fd, int pageNum, char **pagebuf){
 
 
 /*
- * After checking the validity of the fd and pageNum values, this function marks the page associated with pageNum and fd dirty. 
+ * After checking the validity of the fd and pageNum values, 
+ * this function marks the page associated with pageNum and fd dirty. 
  * It returns PFE_OK if the operation is successful, an error condition otherwise.
  *Dev: Antoine 
  */
 int PF_DirtyPage(int fd, int pageNum){
+	BFreq bq;
+	int resBF;
+	
+	/* prepare buffer request */
+    bq.fd = fd ; 
+    bq.pagenum = pageNum;
+
+    /* mark dirty in the buf */
+    resBF = BF_TouchBuf(bq);
+    if(resBF!=BFE_OK){return resBF
+    /* mark dirty in the PFftable */
 
 	return PFE_OK;
 }
-
 
 /* 
  *    int     fd            PF file descriptor
