@@ -22,8 +22,8 @@ int lru_add(LRU* lru, BFpage *new_BFpage){
 	/*this BFpage become the most recently used, consequently it is the head of the LRU list*/
  	
 	if(lru->tail==NULL){ /*first page in the LRU*/
-		printf("liste vide \n");
-                new_BFpage->nextpage=NULL;
+		/*printf("liste vide \n");*/
+        new_BFpage->nextpage=NULL;
 		new_BFpage->prevpage=NULL;
 		lru->head=new_BFpage;
 		lru->tail=new_BFpage;
@@ -65,39 +65,39 @@ int lru_remove(LRU* lru,BFpage** victim){
 
 	     if(pt->count==0){ /* the victim is pointed by pt*/
 
-		/* to remove from the lru list, change pointer is enough */ 
-		if (pt != lru->head){
-	
-
-  
-			if(pt!=lru->tail) {
-				pt->prevpage->nextpage=pt->nextpage; 
-				pt->nextpage->prevpage=pt->prevpage;
-			 }
-			
-			else{	
-				
-				pt->prevpage->nextpage=NULL;/*tail victim ==> the page before tail becomes the tail	*/	lru->tail=pt->prevpage;
-			}
-		}
-		else{
-			if(pt!=lru->tail) {
-					pt->nextpage->prevpage=NULL;/* head victim ==> next page becomes head*/
-					lru->head=pt->nextpage;
-			 }
-			else{/* the head is the tail*/
-				lru->head=NULL;
-				lru->tail=NULL;
-			}
-					
+			/* to remove from the lru list, change pointer is enough */ 
+			if (pt != lru->head){
 		
-		}
-		/************ victim is removed ********************************/
-		pt->nextpage=NULL;
-		pt->prevpage=NULL;
-		lru->number_of_page-=1;
-		(*victim)=pt;
-		return BFE_OK;
+
+	  
+				if(pt!=lru->tail) {
+					pt->prevpage->nextpage=pt->nextpage; 
+					pt->nextpage->prevpage=pt->prevpage;
+				 }
+				
+				else{	
+					
+					pt->prevpage->nextpage=NULL;/*tail victim ==> the page before tail becomes the tail	*/	lru->tail=pt->prevpage;
+				}
+			}
+			else{
+				if(pt!=lru->tail) {
+						pt->nextpage->prevpage=NULL;/* head victim ==> next page becomes head*/
+						lru->head=pt->nextpage;
+				 }
+				else{/* the head is the tail*/
+					lru->head=NULL;
+					lru->tail=NULL;
+				}
+						
+			
+			}
+			/************ victim is removed ********************************/
+			pt->nextpage=NULL;
+			pt->prevpage=NULL;
+			lru->number_of_page-=1;
+			(*victim)=pt;
+			return BFE_OK;
 	    }
 		
 		
@@ -111,10 +111,10 @@ void lru_print(LRU* lru){
 	BFpage *pt;
 
 	if(lru->head==NULL){
-		printf(" \n EMPTY List \n\n");
+		printf(" \nEMPTY List \n\n");
 		return;
 	}
-	printf(" There is %d pages in the LRU list \n\n ", lru->number_of_page);
+	printf("There is %d pages in the LRU list \n\n ", lru->number_of_page);
 
 	pt = lru->head;
 

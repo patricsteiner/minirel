@@ -159,6 +159,8 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 
 /*
  * Returns a PF page in a memory block pointed to by *fpage
+ * increase the pin count if file already in the buffer
+ * set it to 1 if not in buffer
  * Dev : Antoine
  */
 int BF_GetBuf(BFreq bq, PFpage** fpage){
@@ -169,10 +171,10 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 
 	h_entry = ht_get(ht, bq.fd, bq.pagenum);
 
-	/*page already in buffer */
+	/*If page in buffer */
 	if(h_entry != NULL){
-		printf( " ce que me donne la ht  %d , %d \n" , h_entry->bpage->fd, h_entry->bpage->pagenum);
-		h_entry->bpage->count += 1;
+		/* printf( "ce que me donne la ht  %d , %d \n" , h_entry->bpage->fd, h_entry->bpage->pagenum); */
+		h_entry->bpage->count ++;
 		(*fpage) = &(h_entry->bpage->fpage);
 		res=lru_mtu(lru, h_entry->bpage); /* the page become the most recently used page */
 		if(res != 0){
@@ -181,16 +183,13 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 		return BFE_OK;
 	}
 
-	/*page not in buffer */
+	/* If page not in buffer */
 	bfpage_entry = fl_give_one(fl);
-
-	/*No more  place in the buffer <=> No more freespace */
+	
+	/* If no more freespace : remove a victim in lru*/
 	if( bfpage_entry == NULL){
-		
-		/* remove a victim in lru and add a page in the freelist */
 		res=BF_FlushPage(lru);
 		if(res != BFE_OK) return res; 
-
 		bfpage_entry = fl_give_one(fl);
 	}
 	

@@ -54,8 +54,8 @@ int PF_CreateFile(char *filename){
 	unixfd=0;
 	PFfd=0;
 	
-	
-	unixfd=open(filename, O_CREAT|O_RDWR);
+    /* set the rights (read write) pf the file when created */
+	unixfd=open(filename, O_CREAT|O_RDWR, 0666);
 	
 	if (unixfd < 0) {  
 	    /* problem occurred while opening the file */
@@ -175,7 +175,7 @@ int PF_OpenFile (char *filename){
     bq.pagenum = 0; /*header is the first page of a file */
     bq.dirty = FALSE;
 
-    res = BF_GetBuf(bq, &fpageHeader);
+    res = BF_GetBuf(bq, &fpageHeader); /* PIN of the file is set to 1 */
     if(res != BFE_OK){return PFE_GETBUF;}
 
     /* prepare new entry */
@@ -213,33 +213,52 @@ int PF_OpenFile (char *filename){
  */
 
 /* 
- * Question : what to do with the free space in the PFftab, and length ? free 
+ * Question : how to write the new header into the file ? with get buf
  */
 
 int PF_CloseFile (int fd) {
 	PFftab_ele* pt;
-	int unixfd, error, ret;
+	BFreq bq;
+	PFpage* fpageHeader;
+	int error;
 
+	if (fd < 0 || fd >= PFftab_length) return PFE_FD;
 	pt = (PFftab + sizeof(PFftab_ele)*fd);
-	unixfd = pt->unixfd; /* to close the file */
 
 	if(pt->hdrchanged=TRUE){
-		/* TODO */
-		/* write to the file header the new number of pages (pt->hdr.numepages) (cast integer to char) */
+	    /* to write the header : write with get buf, touchbuf and unpin */ 
+	    bq.unixfd = pt->unixfd;
+	    bq.fd = fd ; 
+	    bq.pagenum = 0; /*header is the first page of a file */
+	    bq.dirty = TRUE;
+
+	    /* get the headerpage to write into it (increases the pincount by 1) */
+		error = BF_GetBuf(bq, &fpageHeader);
+    	if(error != BFE_OK) return PFE_GETBUF;
+    	snprintf(fpageHeader->pagebuf, PAGE_SIZE ,"%d", pt->hdr.numpages);
+
+    	/* say to buffer pool that this page is dirty*/
+    	error = BF_TouchBuf(bq);
+    	if(error!=BFE_OK) return error;
+
+    	/* Unpin the page after */
+    	error = BF_UnpinBuf(bq);
+    	if (error != BFE_OK) return error;
 	}
 
-	/* check if all pages are unpinned before deleting it : already managed into flushbuf */
-	ret = BF_FlushBuf(fd);
-	if(ret != BFE_OK){
-	 return ret;
-	}
+	/* Flush buffer before closing the file */
+	error = BF_FlushBuf(fd);
+	if(error != BFE_OK) return error;
 
-
-	if ((error = close(unixfd)) < 0) {
+	/* Close the file with unix close*/
+	if (close(pt->unixfd) < 0) {
 		printf("close failed for file '%s'", pt->fname);
 		return PFE_UNIX;
     }
+
+    pt->valid = FALSE;
     printf("\nThe file '%s' containing %d pages has been closed.\n", pt->fname, pt->hdr.numpages);
+
 	return BFE_OK;
 }
 
@@ -381,17 +400,25 @@ int PF_GetThisPage (int fd, int pageNum, char **pagebuf){
  *Dev: Antoine 
  */
 int PF_DirtyPage(int fd, int pageNum){
+	PFftab_ele* ftab_ele;
 	BFreq bq;
 	int resBF;
+
+	if (fd < 0 || fd >= PFftab_length) return PFE_FD;
 	
+	ftab_ele = (PFftab + sizeof(PFftab_ele) * fd);
+
+	if (pageNum < 0 || pageNum >= ftab_ele->hdr.numpages) return PFE_INVALIDPAGE;
+
 	/* prepare buffer request */
-    bq.fd = fd ; 
+	bq.unixfd = ftab_ele->unixfd;
+    bq.fd = fd; 
     bq.pagenum = pageNum;
+    bq.dirty = TRUE; /*useless*/
 
     /* mark dirty in the buf */
     resBF = BF_TouchBuf(bq);
-    if(resBF!=BFE_OK){return resBF
-    /* mark dirty in the PFftable */
+    if(resBF!=BFE_OK) return resBF;
 
 	return PFE_OK;
 }
@@ -441,7 +468,9 @@ int PF_UnpinPage(int fd, int pageNum, int dirty) {
   * Used in pftest.c
   */
 
-void PF_PrintError (char *error){}
+void PF_PrintError (char *error){
+	printf("\nPF_PrintError : %s\n", error);
+}
 
 
 
