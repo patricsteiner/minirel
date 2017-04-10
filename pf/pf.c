@@ -169,7 +169,7 @@ int PF_OpenFile (char *filename){
 
    	/* prepare buffer request */
     bq.unixfd = unixfd;
-    bq.fd = PFftab_length ; 
+    bq.fd = PFftab_length; 
     bq.pagenum = 0; /*header is the first page of a file */
     bq.dirty = FALSE;
 
@@ -195,8 +195,11 @@ int PF_OpenFile (char *filename){
 
     PFftab_length++; /* for next entry */
 
+    res= BF_UnpinBuf(bq); /* page has pinned to 0 now */
+	if(res!=0) BF_ErrorHandler(res);
+
     printf("\nThe file '%s' containing %d pages has been added to the PFtable.\n", filename, pt->hdr.numpages);
-	return fd;
+	return bq.fd;
 }
 
 /*
@@ -304,6 +307,10 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	*pagenum = new_pagenum;
 	*(pagebuf)=pfpage->pagebuf;
 	PFftab[fd].hdrchanged = TRUE;
+
+	PFftab[fd].hdr.numpages++ ;
+
+	/*print lru buffer*/
 	return PFE_OK;
 }
 
@@ -410,17 +417,20 @@ int PF_DirtyPage(int fd, int pageNum){
 	
 	ftab_ele = (PFftab + sizeof(PFftab_ele) * fd);
 
-	if (pageNum < 0 || pageNum >= ftab_ele->hdr.numpages) return PFE_INVALIDPAGE;
+	if (pageNum < 0 || pageNum > ftab_ele->hdr.numpages){
+		printf("\nnumpages : %d\n", ftab_ele->hdr.numpages);
+		return PFE_INVALIDPAGE;
+	}
 
 	/* prepare buffer request */
 	bq.unixfd = ftab_ele->unixfd;
-    	bq.fd = fd; 
-    	bq.pagenum = pageNum;
-    	bq.dirty = TRUE; /*useless*/
+    bq.fd = fd; 
+    bq.pagenum = pageNum;
+    bq.dirty = TRUE; /*useless*/
 
-    	/* mark dirty in the buf */
-    	resBF = BF_TouchBuf(bq);
-    	if(resBF!=BFE_OK) return resBF;
+    /* mark dirty in the buf */
+    resBF = BF_TouchBuf(bq);
+    if(resBF!=BFE_OK) return resBF;
 
 	return PFE_OK;
 }
@@ -445,7 +455,8 @@ int PF_UnpinPage(int fd, int pageNum, int dirty) {
 	
 	pfftab_ele = &PFftab[fd];
 	/*alternate way to get pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
-	if (pageNum < 0 || pageNum >= pfftab_ele->hdr.numpages) {
+	if (pageNum < 0 || pageNum > pfftab_ele->hdr.numpages) {
+		printf("\nUnpin page num : %d\nhdr.numpages : %d\n",pageNum, pfftab_ele->hdr.numpages);
 		return PFE_INVALIDPAGE;
 	}
 	
@@ -471,7 +482,10 @@ int PF_UnpinPage(int fd, int pageNum, int dirty) {
   */
 
 void PF_PrintError (char *error){
-	/* printf("\nPF_PrintError : %s\n", error); */
+	printf("\n***************** BUFFER STATES *****************\n\n");
+	BF_ShowBuf();
+	printf("\nPF_PrintError : %s\n", error);
+
 }
 
 
