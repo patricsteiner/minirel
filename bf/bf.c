@@ -7,7 +7,7 @@
 #include "bf.h"
 
 /*
- * globally used data structures: freelist, hashtable and lru
+ * globally used data structures: freelist, hashtable and lru.
  */
 Freelist* fl;
 LRU* lru;
@@ -15,10 +15,8 @@ Hashtable* ht;
 
 
 /*
- *Error Handler, print a message related to the error code
- *
+ * Error Handler, print a message related to the error code.
  */
-
 void BF_ErrorHandler( int error_code){
 	switch( error_code){
 		case BFE_HASHNOTFOUND: printf("\n BF: the page is not (found) in hashtable \n"); break;
@@ -47,17 +45,15 @@ void BF_ErrorHandler( int error_code){
 	}
 	exit(-1);
 }
+
 /*
- * Init the BF layer
- * Creates all the buffer entries and add them to the freelist
- * Also init the hashtable
+ * Inits the BF layer.
+ * Creates all the buffer entries and add them to the freelist.
+ * Also init the hashtable.
  * Dev : Antoine
  */
 void BF_Init(void){
-	/*
-	 * TODO How to do the error_handling ? 
-	 */
-	fl = fl_init(BF_MAX_BUFS); /*buffer entries malloc in the fl_function*/
+	fl = fl_init(BF_MAX_BUFS); /* buffer entries malloc in the fl_function */
 	lru = lru_init();
 	ht = ht_init(BF_HASH_TBL_SIZE);
 }
@@ -158,9 +154,9 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 }
 
 /*
- * Returns a PF page in a memory block pointed to by *fpage
- * increase the pin count if file already in the buffer
- * set it to 1 if not in buffer
+ * Returns a PF page in a memory block pointed to by *fpage.
+ * Increases the pin count if file already in the buffer, 
+ * sets it to 1 otherwise.
  * Dev : Antoine
  */
 int BF_GetBuf(BFreq bq, PFpage** fpage){
@@ -171,7 +167,7 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 
 	h_entry = ht_get(ht, bq.fd, bq.pagenum);
 
-	/*If page in buffer */
+	/* If page in buffer */
 	if(h_entry != NULL){
 		h_entry->bpage->count ++;
 		(*fpage) = &(h_entry->bpage->fpage);
@@ -192,7 +188,7 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 		bfpage_entry = fl_give_one(fl);
 	}
 	
-	/*set the correct parameters */
+	/* set the correct parameters */
 	bfpage_entry->count = 1;
 	bfpage_entry->dirty = FALSE;
 	bfpage_entry->fd = bq.fd;
@@ -200,16 +196,17 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 	bfpage_entry->unixfd = bq.unixfd;
 
 	/* add page to LRU and HT */
-	if(lru_add(lru, bfpage_entry) == BFE_OK && ht_add(ht, bfpage_entry) == BFE_OK){
-	}else{return  BFE_PAGENOTOBUF;}
+	if (lru_add(lru, bfpage_entry) == BFE_OK && ht_add(ht, bfpage_entry) != BFE_OK) {
+		return  BFE_PAGENOTOBUF;
+	}
 
-	/*try to read the file asked */
-	if(pread(bq.unixfd, bfpage_entry->fpage.pagebuf, PAGE_SIZE, ((bq.pagenum))*PAGE_SIZE) == -1){
+	/* try to read the file asked */
+	if (pread(bq.unixfd, bfpage_entry->fpage.pagebuf, PAGE_SIZE, (bq.pagenum)*PAGE_SIZE) == -1) {
 		return  BFE_INCOMPLETEREAD;
 	}
 
-	/*value returned to the user */
-	(*fpage) = &(bfpage_entry->fpage);
+	/* value returned to the user */
+	*fpage = &(bfpage_entry->fpage);
 	return BFE_OK;
 }
 
