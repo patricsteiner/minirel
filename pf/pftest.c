@@ -89,10 +89,10 @@ void printfile(int fd)
     	    PF_PrintError("unfix");
     	    exit(1);
     	}
-    } else {
-	PF_PrintError("First Page");
-printf("error = %d\n",error);
-	exit(1);
+    }else{
+    	PF_PrintError("First Page");
+        printf("error = %d\n",error);
+    	exit(1);
     }
 
     while ((error = PF_GetNextPage(fd,&pagenum,&buf))== PFE_OK){

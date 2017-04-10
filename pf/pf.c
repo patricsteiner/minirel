@@ -258,6 +258,7 @@ int PF_CloseFile (int fd) {
     }
 
     pt->valid = FALSE;
+    PFftab_length--;
     printf("\nThe file '%s' containing %d pages has been closed.\n", pt->fname, pt->hdr.numpages);
 
 	return BFE_OK;
@@ -289,7 +290,7 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	}
 	/* TODO: appedned to end of the file? ...how to do that */
 	
-	new_pagenum = PFftab[fd].hdr.numpages + 1;	
+	new_pagenum = PFftab[fd].hdr.numpages;	
 	/*alternate? way to get pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
 	bq.fd = fd;
 	bq.unixfd = PFftab[fd].unixfd;
@@ -417,7 +418,7 @@ int PF_DirtyPage(int fd, int pageNum){
 	
 	ftab_ele = (PFftab + sizeof(PFftab_ele) * fd);
 
-	if (pageNum < 0 || pageNum > ftab_ele->hdr.numpages){
+	if (pageNum < 0 || pageNum >= ftab_ele->hdr.numpages){
 		printf("\nnumpages : %d\n", ftab_ele->hdr.numpages);
 		return PFE_INVALIDPAGE;
 	}
@@ -455,8 +456,9 @@ int PF_UnpinPage(int fd, int pageNum, int dirty) {
 	
 	pfftab_ele = &PFftab[fd];
 	/*alternate way to get pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
-	if (pageNum < 0 || pageNum > pfftab_ele->hdr.numpages) {
-		printf("\nUnpin page num : %d\nhdr.numpages : %d\n",pageNum, pfftab_ele->hdr.numpages);
+	if (pageNum < 0 || pageNum >= pfftab_ele->hdr.numpages) {
+		printf("\nLa page suivante est invalide :");
+		printf("\nPfftab number : %d\nPFtab length : %d\npage num : %d\nhdr.numpages : %d\n",fd, PFftab_length,pageNum, pfftab_ele->hdr.numpages);
 		return PFE_INVALIDPAGE;
 	}
 	
