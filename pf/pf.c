@@ -294,11 +294,14 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	bq.unixfd = PFftab[fd].unixfd;
 	bq.dirty = TRUE;
 	bq.pagenum = new_pagenum;
-	pfpage = malloc(sizeof(PFpage));
+	/*pfpage = malloc(sizeof(PFpage));*/
 	if ((error = BF_AllocBuf(bq, &pfpage)) != BFE_OK) {
 		return error;
 	}
-
+	/* make page dirty */
+	if ((error = BF_TouchBuf(bq)) != BFE_OK) {
+		return error;
+	}
 	/* update page info */
 	*pagenum = new_pagenum;
 	PFftab[fd].hdrchanged = TRUE;
