@@ -73,7 +73,7 @@ int PF_CreateFile(char *filename){
 
 	pt->valid=TRUE;
 	pt->inode=inode;
-	snprintf(pt->fname,  sizeof(filename),"%s", filename);/* à tester */
+	sprintf(pt->fname,"%s",filename);/* à tester */
 	pt->unixfd=unixfd;
 	pt->hdr.numpages=1; /* first page is for the header */
 	pt->hdrchanged=FALSE; 
@@ -81,8 +81,6 @@ int PF_CreateFile(char *filename){
 	/* pf file descriptor is the index in the table */
 	PFfd=PFftab_length;
 	PFftab_length++;
-	hdr->numpages=1;
-
 
 	/* hdrchanged is false, because next step is the copy of the header in the first page of the file*/
 	/* file header is written in the first page of the file */
@@ -94,7 +92,7 @@ int PF_CreateFile(char *filename){
 	ret=BF_AllocBuf(breq, &fpage);
 	if(ret!=0) BF_ErrorHandler(ret);/*print a chosen string and then exit */
 	
-	snprintf(fpage->pagebuf, PAGE_SIZE ,"%d", hdr->numpages); /*all the page is for header of file == number of pages in the page.*/
+	sprintf(fpage->pagebuf, "%d", pt->hdr.numpages); /*all the page is for header of file == number of pages in the page.*/
 	breq.dirty=TRUE;
 
 	ret=BF_TouchBuf(breq); /* page is dirty */
@@ -190,7 +188,7 @@ int PF_OpenFile (char *filename){
     /* fill the new entry */
     pt->valid = TRUE;
     pt->inode = file_stat.st_ino;
-    pt->fname = filename;
+    sprintf(pt->fname,"%s",filename);
     pt->unixfd = unixfd;
     pt->hdr.numpages = atoi(fpageHeader->pagebuf);
     pt->hdrchanged = FALSE;
@@ -235,7 +233,7 @@ int PF_CloseFile (int fd) {
 	    /* get the headerpage to write into it (increases the pincount by 1) */
 		error = BF_GetBuf(bq, &fpageHeader);
     	if(error != BFE_OK) return PFE_GETBUF;
-    	snprintf(fpageHeader->pagebuf, PAGE_SIZE ,"%d", pt->hdr.numpages);
+    	sprintf(fpageHeader->pagebuf, "%d", pt->hdr.numpages);
 
     	/* say to buffer pool that this page is dirty*/
     	error = BF_TouchBuf(bq);
@@ -294,13 +292,17 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	bq.unixfd = PFftab[fd].unixfd;
 	bq.dirty = TRUE;
 	bq.pagenum = new_pagenum;
-	pfpage = malloc(sizeof(PFpage));
+	/*pfpage = malloc(sizeof(PFpage));*/
 	if ((error = BF_AllocBuf(bq, &pfpage)) != BFE_OK) {
 		return error;
 	}
-
+	/* make page dirty */
+	if ((error = BF_TouchBuf(bq)) != BFE_OK) {
+		return error;
+	}
 	/* update page info */
 	*pagenum = new_pagenum;
+	*(pagebuf)=pfpage->pagebuf;
 	PFftab[fd].hdrchanged = TRUE;
 	return PFE_OK;
 }
@@ -379,7 +381,7 @@ int PF_GetThisPage (int fd, int pageNum, char **pagebuf){
 	bq.dirty=FALSE;
 	bq.pagenum=pageNum;
 	
-	if( pt->hdr.numpages < pageNum) return PFE_EOF; /* the wanted page does not exist */
+	if( pt->hdr.numpages <= pageNum) return PFE_EOF; /* the wanted page does not exist */
 	
 	ret=BF_GetBuf(bq,&fpage);
 	if(ret!=0) BF_ErrorHandler(ret);
@@ -412,13 +414,13 @@ int PF_DirtyPage(int fd, int pageNum){
 
 	/* prepare buffer request */
 	bq.unixfd = ftab_ele->unixfd;
-    bq.fd = fd; 
-    bq.pagenum = pageNum;
-    bq.dirty = TRUE; /*useless*/
+    	bq.fd = fd; 
+    	bq.pagenum = pageNum;
+    	bq.dirty = TRUE; /*useless*/
 
-    /* mark dirty in the buf */
-    resBF = BF_TouchBuf(bq);
-    if(resBF!=BFE_OK) return resBF;
+    	/* mark dirty in the buf */
+    	resBF = BF_TouchBuf(bq);
+    	if(resBF!=BFE_OK) return resBF;
 
 	return PFE_OK;
 }
