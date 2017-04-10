@@ -92,7 +92,8 @@ int PF_CreateFile(char *filename){
 	ret=BF_AllocBuf(breq, &fpage);
 	if(ret!=0) BF_ErrorHandler(ret);/*print a chosen string and then exit */
 	
-	sprintf(fpage->pagebuf, "%d", pt->hdr.numpages); /*all the page is for header of file == number of pages in the page.*/
+	/*sprintf(fpage->pagebuf, "%d", pt->hdr.numpages); /*all the page is for header of file == number of pages in the page.*/
+	memcpy((char*) fpage->pagebuf, (int *)&(pt->hdr.numpages), sizeof(int));
 	breq.dirty=TRUE;
 
 	ret=BF_TouchBuf(breq); /* page is dirty */
@@ -190,7 +191,8 @@ int PF_OpenFile (char *filename){
     pt->inode = file_stat.st_ino;
     sprintf(pt->fname,"%s",filename);
     pt->unixfd = unixfd;
-    pt->hdr.numpages = atoi(fpageHeader->pagebuf);
+    memcpy((int*) &(pt->hdr.numpages), (char*)fpageHeader->pagebuf, sizeof(int));
+    /*pt->hdr.numpages = atoi(fpageHeader->pagebuf);*/
     pt->hdrchanged = FALSE;
 
     PFftab_length++; /* for next entry */
@@ -236,8 +238,8 @@ int PF_CloseFile (int fd) {
 	    /* get the headerpage to write into it (increases the pincount by 1) */
 		error = BF_GetBuf(bq, &fpageHeader);
     	if(error != BFE_OK) return PFE_GETBUF;
-    	sprintf(fpageHeader->pagebuf, "%d", pt->hdr.numpages);
-
+    	/*sprintf(fpageHeader->pagebuf, "%d", pt->hdr.numpages);*/
+    	memcpy((char*) fpageHeader->pagebuf, (int *)&(pt->hdr.numpages), sizeof(int));
     	/* say to buffer pool that this page is dirty*/
     	error = BF_TouchBuf(bq);
     	if(error!=BFE_OK) return error;
@@ -331,14 +333,14 @@ int PF_GetNextPage (int fd, int *pageNum, char **pagebuf){
 	
 	
 	/* fill bq using PFftab_ele fields */
-	
+
 	pt=(PFftab+sizeof(PFftab_ele)*fd);
 	bq.fd=fd;
 	bq.unixfd=pt->unixfd;
 	bq.dirty=FALSE;
 	bq.pagenum=(*pageNum)+1;
 	
-	if( pt->hdr.numpages < (*pageNum)+1) return PFE_EOF; /* the wanted page does not exist */
+	if( pt->hdr.numpages <= (*pageNum)+1 ) return PFE_EOF; /* the wanted page does not exist */
 	
 	ret=BF_GetBuf(bq,&fpage);
 	if(ret!=0) BF_ErrorHandler(ret);
