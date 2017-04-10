@@ -469,7 +469,7 @@ int PF_UnpinPage(int fd, int pageNum, int dirty) {
   */
 
 void PF_PrintError (char *error){
-	printf("\nPF_PrintError : %s\n", error);
+	/* printf("\nPF_PrintError : %s\n", error); */
 }
 
 

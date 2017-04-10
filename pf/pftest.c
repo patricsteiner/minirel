@@ -136,10 +136,11 @@ void testpf1(void)
     int		i, error, pagenum;
     char*	buf;
     int		fd1, fd2;
-    char        command[30];
+    char     command[30];
     int temp;
 
     /* Making sure file don't exist */
+    printf("unlink");
     unlink(FILE1);
 
     /* create a few files */
