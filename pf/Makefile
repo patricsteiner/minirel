@@ -10,7 +10,8 @@ LIBS	= lib${LIB}.a ../bf/libbf.a
 #############################################################################
 # This macro definition can be overwritten by command-line definitions.
 CC	= gcc
-CFLAGS	= -g -ansi -pedantic
+CFLAGS	= -g -ansi -pedantic -Wall
+CFLAGSDEBUG = -g -std=c99 -Wall
 #CFLAGS	= -O -ansi -pedantic
 #############################################################################
 
@@ -21,6 +22,9 @@ antoinetest:
 
 antoine:
 	$(CC) $(CFLAGS) pftest.c pf.c ../bf/bf.c ../bf/bfUtils.c -I ../h
+
+antoineDebug:
+	$(CC) $(CFLAGSDEBUG) pftest.c pf.c ../bf/bf.c ../bf/bfUtils.c -I ../h
 
 patric:
 	$(CC) $(CFLAGS) pftest.c pf.c ../bf/bf.c ../bf/bfUtils.c -g -I ../h
