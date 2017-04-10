@@ -9,7 +9,7 @@
 #include "bf.h"
 #include "bfUtils.h"
 #include "pf.h"
-#include "pfHeader.h"
+#include "pfUtils.h"
 
 
 PFftab_ele *PFftab; 
@@ -175,7 +175,7 @@ int PF_OpenFile (char *filename){
     bq.dirty = FALSE;
 
     res = BF_GetBuf(bq, &fpageHeader); /* PIN of the file is set to 1 */
-    if(res != BFE_OK){return PFE_GETBUF;}
+    if(res != BFE_OK) BF_ErrorHandler(res);
 
     /* prepare new entry */
     pt=(PFftab+sizeof(PFftab_ele)*PFftab_length);
@@ -214,11 +214,6 @@ int PF_OpenFile (char *filename){
  * This function returns PFE_OK if the operation is successful, an error condition otherwise.
  *Dev: Antoine
  */
-
-/* 
- * Question : how to write the new header into the file ? with get buf
- */
-
 int PF_CloseFile (int fd) {
 	PFftab_ele* pt;
 	BFreq bq;
@@ -237,7 +232,7 @@ int PF_CloseFile (int fd) {
 
 	    /* get the headerpage to write into it (increases the pincount by 1) */
 		error = BF_GetBuf(bq, &fpageHeader);
-    	if(error != BFE_OK) return PFE_GETBUF;
+    	if(error != BFE_OK) BF_ErrorHandler(error);
     	/*sprintf(fpageHeader->pagebuf, "%d", pt->hdr.numpages);*/
     	memcpy((char*) fpageHeader->pagebuf, (int *)&(pt->hdr.numpages), sizeof(int));
     	/* say to buffer pool that this page is dirty*/
@@ -300,11 +295,11 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	bq.pagenum = new_pagenum;
 	/*pfpage = malloc(sizeof(PFpage));*/
 	if ((error = BF_AllocBuf(bq, &pfpage)) != BFE_OK) {
-		return error;
+		BF_ErrorHandler(error);
 	}
 	/* make page dirty */
 	if ((error = BF_TouchBuf(bq)) != BFE_OK) {
-		return error;
+		BF_ErrorHandler(error);
 	}
 	/* update page info */
 	*pagenum = new_pagenum;
@@ -433,7 +428,7 @@ int PF_DirtyPage(int fd, int pageNum){
 
     /* mark dirty in the buf */
     resBF = BF_TouchBuf(bq);
-    if(resBF!=BFE_OK) return resBF;
+    if(resBF!=BFE_OK) BF_ErrorHandler(resBF);
 
 	return PFE_OK;
 }
@@ -459,8 +454,6 @@ int PF_UnpinPage(int fd, int pageNum, int dirty) {
 	pfftab_ele = &PFftab[fd];
 	/*alternate way to get pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
 	if (pageNum < 0 || pageNum >= pfftab_ele->hdr.numpages) {
-		printf("\nLa page suivante est invalide :");
-		printf("\nPfftab number : %d\nPFtab length : %d\npage num : %d\nhdr.numpages : %d\n",fd, PFftab_length,pageNum, pfftab_ele->hdr.numpages);
 		return PFE_INVALIDPAGE;
 	}
 	
@@ -470,24 +463,18 @@ int PF_UnpinPage(int fd, int pageNum, int dirty) {
 	bq.pagenum = pageNum;
 	
 	if ((error = BF_UnpinBuf(bq)) != BFE_OK) {
-		return error;
+		BF_ErrorHandler(error);
 	}
 	if (dirty) { /* mark page as dirty when it should be dirty */
 		if ((error = BF_TouchBuf(bq)) != BFE_OK) {
-			return error;
+			BF_ErrorHandler(error);
 		}
 	}
 	return PFE_OK;
 }
 
     
- /*
-  * Used in pftest.c
-  */
-
 void PF_PrintError (char *error){
-	printf("\n***************** BUFFER STATES *****************\n\n");
-	BF_ShowBuf();
 	printf("\nPF_PrintError : %s\n", error);
 
 }

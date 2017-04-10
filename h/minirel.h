@@ -34,7 +34,6 @@ typedef float  real;
  * configuration of system resources
  */
 #define MAXOPENFILES    20      /* maximum # of files open at one time  */
-#define MAXSCANS        20      /* maximum number of scans allowed */
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE		4096

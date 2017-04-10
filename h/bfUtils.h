@@ -71,6 +71,7 @@ int lru_mtu(LRU* lru, BFpage* mtu_page);
  */
 
 int BF_FlushPage(LRU* lru);
+void BF_ErrorHandler(int error_code);
 
 
 /**********************************************************************************************/

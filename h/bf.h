@@ -18,12 +18,12 @@
 /*
  * prototypes for BF-layer functions
  */
-void BF_Init(void); /* init the buffer pool layer */
-int BF_AllocBuf(BFreq bq, PFpage **fpage); /* add a new page to a file */
-int BF_GetBuf(BFreq bq, PFpage **fpage); /* get the buffer of a given file */
-int BF_UnpinBuf(BFreq bq); /* unpin a page */
-int BF_TouchBuf(BFreq bq); /* mark a page as dirty and made the page the mru elem */
-int BF_FlushBuf(int fd);  /* wirte all pages with given fd to the disk */
+void BF_Init(void);
+int BF_AllocBuf(BFreq bq, PFpage **fpage);
+int BF_GetBuf(BFreq bq, PFpage **fpage);
+int BF_UnpinBuf(BFreq bq);
+int BF_TouchBuf(BFreq bq);
+int BF_FlushBuf(int fd);
 void BF_ShowBuf(void);
 
 /*

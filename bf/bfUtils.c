@@ -22,7 +22,6 @@ int lru_add(LRU* lru, BFpage *new_BFpage){
 	/*this BFpage become the most recently used, consequently it is the head of the LRU list*/
  	
 	if(lru->tail==NULL){ /*first page in the LRU*/
-		/*printf("liste vide \n");*/
         new_BFpage->nextpage=NULL;
 		new_BFpage->prevpage=NULL;
 		lru->head=new_BFpage;
@@ -111,15 +110,15 @@ void lru_print(LRU* lru){
 	BFpage *pt;
 
 	if(lru->head==NULL){
-		printf(" \nEMPTY List \n\n");
+		printf("\nBuffer Pool is empty\n");
 		return;
 	}
-	printf("There is %d pages in the LRU list \n\n ", lru->number_of_page);
-
+	printf("\nThere are %d pages in the LRU list \n\n ", lru->number_of_page);
+	printf("Data\t\tDirty flag\t\tpin\t\tFd - page number\n\n");
 	pt = lru->head;
-
+	printf("\n");
 	do{
-             printf(" Data: %s             Dirty flag: %d           pin: %d             Fd - page number: %d - %d \n\n", pt->fpage.pagebuf, pt->dirty, pt->count, pt->fd, pt->pagenum);
+             printf("%s\t\t%d\t\t%d\t\t%d\t%d\n", pt->fpage.pagebuf, pt->dirty, pt->count, pt->fd, pt->pagenum);
 
 	     pt=pt->nextpage;
 	}while(pt!=NULL); /*stop the loop after the tail*/

@@ -173,7 +173,6 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 
 	/*If page in buffer */
 	if(h_entry != NULL){
-		/* printf( "ce que me donne la ht  %d , %d \n" , h_entry->bpage->fd, h_entry->bpage->pagenum); */
 		h_entry->bpage->count ++;
 		(*fpage) = &(h_entry->bpage->fpage);
 		res=lru_mtu(lru, h_entry->bpage); /* the page become the most recently used page */
