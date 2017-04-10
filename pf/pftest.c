@@ -42,6 +42,7 @@ printf("PF_AllocPage fails (i=%d)\n",i);
 
 	/* mark all these pages dirty */
 	if(PF_DirtyPage(fd, pagenum) != PFE_OK){
+		printf("%d",PF_DirtyPage(fd, pagenum)); 
 	    PF_PrintError("PF_DirtyPage");
 	    exit(1);
 	}
