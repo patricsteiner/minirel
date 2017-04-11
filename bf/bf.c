@@ -38,10 +38,12 @@ void BF_ErrorHandler( int error_code){
 		case BFE_PAGENOTOBUF: printf("\n BF: page not added to buffer pool (error in lru_add or ht_add ) \n\n"); break;
 
 		case BFE_NOBUF: printf("\n BF: empty lru ( BFE_NOBUF) \n\n"); break;
+		
+		case BFE_WRONGPARAMETER: printf ("\n BF: wrong incoming parameters in a BF's function \n\n");break;
 
 		case BFE_OK: printf( "\n BF: error handler called but no error \n\n "); break;
 
-		default: printf( " \n  BF: unused error code : %d \n\n ", error_code);break; 
+		default: printf( " \n  BF: unused error code : %d \n\n ", error_code);
 	}
 	exit(-1);
 }
@@ -84,13 +86,13 @@ int BF_FlushPage(LRU* lru){
 		}
 	}
 	
-	/*removes victim */ 
+	/*removes victim from buffer pool (i.e from lru list + hastable) */ 
 	res=ht_remove(ht, victim->fd, victim->pagenum);
-
 	if(res != 0){
 		
 		return res; 
 	} 
+
 	res = fl_add(fl, victim);	
 	if(res != 0){
 		
@@ -122,7 +124,12 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 	BFhash_entry* e;
 	BFpage* page;
 	int error;
+	
+	/*checking validity of parameters*/
+	if(bq==NULL) return BFE_WRONGPARAMETER;
+	if(bq.pagenum<0 || bq.fd<0 || bq.unixfd<0) return BFE_WRONGPARAMETER;
 
+	/* the page is not in the buffer pool,impossible to get it with hastable, ht_get should return NULL */
 	e = ht_get(ht, bq.fd, bq.pagenum);
 	
 	/* it is a new page, so it must not be in buffer yet */
@@ -138,7 +145,7 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 		/* we use this new page */
 		page = fl_give_one(fl);	
 	}
-
+	/*page settings */
 	page->count = 1;
 	page->dirty = FALSE;
 	page->prevpage = NULL;
@@ -146,8 +153,11 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 	page->pagenum = bq.pagenum;
 	page->fd = bq.fd;
 	page->unixfd = bq.unixfd;
-
+	
+	/* the PF_page is returned within the parameter */
 	*fpage = &page->fpage;
+	
+	/*the page is add in hastable and lru list */
 
 	error=ht_add(ht, page);
 	if(error != 0){
@@ -158,11 +168,12 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 	if(error != 0){
 		return error; 
 	} 
+
 	return BFE_OK;
 }
 
 /*
- * Returns a PF page in a memory block pointed to by *fpage.
+ * Returns a PF page in a memory block, pointed to by *fpage.
  * Increases the pin count if file already in the buffer, 
  * sets it to 1 otherwise.
  * Dev : Antoine
@@ -172,7 +183,12 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 	BFpage* bfpage_entry;
 	BFpage* victim;
 	int res;
-
+	
+	/*checking validity of parameters*/
+	if(bq==NULL) return BFE_WRONGPARAMETER;
+	if(bq.pagenum<0 || bq.fd<0 || bq.unixfd<0) return BFE_WRONGPARAMETER;
+	
+	/* if the page is in the buffer pool,it is possible to get it with hastable (otherwise ht_get return NULL) */
 	h_entry = ht_get(ht, bq.fd, bq.pagenum);
 
 	/* If page in buffer */
@@ -229,15 +245,23 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
  */
 int BF_UnpinBuf(BFreq bq){
 	BFhash_entry* ht_entry;
+
+	/*checking validity of parameters*/
+	if(bq==NULL) return BFE_WRONGPARAMETER;
+	if(bq.pagenum<0 || bq.fd<0 || bq.unixfd<0) return BFE_WRONGPARAMETER;
 	
+	/* the page is in the buffer pool, so it is possible to get it with hastable */
 	ht_entry = (ht_get(ht, bq.fd, bq.pagenum)); 
 
-	/* page not in buffer */
-	if (ht_entry == NULL) return BFE_PAGENOTINBUF; 
+	/* page not in buffer pool*/
+	if (ht_entry == NULL) return BFE_HASHNOTFOUND; 
+
 	/* page not pinned */
 	if(ht_entry->bpage->count<1)return BFE_UNPINNEDPAGE;
 
+	/* the pin is decreased by one */
 	ht_entry->bpage->count = ht_entry->bpage->count - 1;
+
 	return BFE_OK;
 }
 
@@ -251,6 +275,10 @@ int BF_UnpinBuf(BFreq bq){
 int BF_TouchBuf(BFreq bq){
     BFhash_entry* ht_entry;
     int res;
+
+    /*checking validity of parameters*/
+    if(bq==NULL) return BFE_WRONGPARAMETER;
+    if(bq.pagenum<0 || bq.fd<0 || bq.unixfd<0) return BFE_WRONGPARAMETER;
  
     /* pointer on the page is get by using hastable */
     ht_entry = (ht_get(ht, bq.fd, bq.pagenum));
@@ -261,6 +289,7 @@ int BF_TouchBuf(BFreq bq){
     
     /* page is marked as dirty */
     ht_entry->bpage->dirty = TRUE;  
+
     /* page has to be head of the list */
     res=lru_mtu(lru, ht_entry->bpage);
     if(res != BFE_OK) return res; 
@@ -278,6 +307,9 @@ int BF_FlushBuf(int fd){
 	BFpage* prev; /* when the page will be add in free list, her prevpage pointer will be set to null, we need this variable to copy it before*/
 	int ret; /* used to recuperate return values */
 	
+	/*checking validity of parameters*/
+	if(fd<0) return BFE_WRONGPARAMETER;
+
 	/* start checking with the tail, until the head */
 	if (lru->tail == NULL) return BFE_OK; /*empty list case*/
 	pt = lru->tail;
@@ -318,7 +350,7 @@ int BF_FlushBuf(int fd){
 					return  BFE_INCOMPLETEWRITE;
 				}			
 			}
-			/* page is removed, next step add it to the free list */
+			/* page is removed, next step: add it to the free list and remove it from hastable*/ 
 			lru->number_of_page-=1;
 			prev = pt->prevpage;
 			ht_remove(ht, pt->fd, pt->pagenum);
@@ -331,7 +363,7 @@ int BF_FlushBuf(int fd){
 	pt = prev;
 	} while (pt != NULL); /*stop the loop after the head*/
 
-	return BFE_OK; /*every page of the file which were in the LRU list, are now in the free list*/
+	return BFE_OK; /*every page of the file which was in the LRU list, are now in the free list*/
 }
 
 /*

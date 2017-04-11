@@ -82,7 +82,8 @@ void BF_ErrorHandler(int error_code);
 #define BFE_UNPINNEDPAGE        (-54)
 #define BFE_NOVICTIM            (-55)
 #define BFE_EMPTY               (-56)
-#define BFE_PAGENOTOBUF			(-57)
+#define BFE_PAGENOTOBUF		(-57)
 #define BFE_PINNEDPAGE          (-58)
+#define BFE_WRONGPARAMETER      (-59)
 
 #endif
