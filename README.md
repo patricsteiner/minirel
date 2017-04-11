@@ -17,10 +17,13 @@ The two interface routines BF_GetBuf and BF_AllocBuf both require a free page in
 There are only two functions that actually write to the disk, namely `int BF_FlushPage(LRU* lru)` and `int BF_FlushBuf(int fd)`. To write page content to the disk, the function `pwrite(int fd, const void *buf, size_t count, off_t offset)` is used, which perfectly fits our needs. We can just pass the unix file descriptor and our pagecontent, the amount of bytes to be written (in our case PAGE_SIZE = 4096) and the offset, where we want to start writing. This offset can easily be calculated by multiplying the number of the page with PAGE_SIZE. Note that the first page of each file is always the header, indicating the amount of pages in the file. The header is always exactly of size PAGE_SIZE, regardless of how big the actual number is.
 
 ### Reading page content from disk
-Reading a page from disk is handled in `int BF_GetBuf(BFreq bq, PFpage** fpage)`. In this interface routine, the function `pread(int fd, void *buf, size_t count, off_t offset)` is used, the counterpart to `pwrite` that is described in the section above.
+Reading a page from disk is handled in `int BF_GetBuf(BFreq bq, PFpage** fpage))`. In this interface routine, the function `pread(int fd, void *buf, size_t count, off_t offset)` is used, the counterpart to `pwrite` that is described in the section above.
+
+### Error Handling
+In order to cover all kind of error, some error codes as been added in the file bfUtils.h. Also to be more comprehensive, the function `void BF_ErroHandler(int error)` print a comprehensive message and exit the program. This function is used in PF_Layer, when a primitive of BF_Layer is called and its return code is not BFE_OK then the BF_ErrorHandler is called with the return code as parameter.
 
 ## Paged File Layer
-TODO
+
 
 ## Heap File LAyer
 TODO
