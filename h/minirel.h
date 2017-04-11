@@ -9,7 +9,6 @@
  * Types for Boolean and real
  */
 typedef enum { FALSE = 0, TRUE } bool_t;
-typedef enum { TAMAMAN=0} inode_t;// !!!!!!! TEMPORARY
 typedef float  real;
 
 /*
@@ -35,7 +34,6 @@ typedef float  real;
  * configuration of system resources
  */
 #define MAXOPENFILES    20      /* maximum # of files open at one time  */
-#define MAXSCANS        20      /* maximum number of scans allowed */
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE		4096
@@ -59,38 +57,6 @@ typedef struct PFpage {
 } PFpage;
 
 /******************************************************************************/
-/*   Type definition for file table and file header of the PF layer.          */
-/******************************************************************************/
-typedef struct PFhdr_str{
-	int numpages; // number of pages in the file
-}PFhdr_str;
-
-typedef struct PFftab_ele{
-	bool_t valid; /*set to TRUE when a file is open*/
-	ino_t inode; // inode number of the file
-	char *fname;//file name
-	int unixfd;//Unix file descriptor
-	PFhdr_str hdr;//file header	
-	short hdrchanged; //true if file header has changed
-}PFftab_ele;
-
-
-
-/******************************************************************************/
-/*   Type definition for pages of the BF layer.                               */
-/******************************************************************************/
-
-typedef struct BFpage {
-	PFpage fpage;   //page data from a file
-	struct BFpage *nextpage;//next in the linked list of buffer pages	
-	struct BFpage *prevpage;// prev in the linked list of buffer pages
-	bool_t dirty; //TRUE if page is dirty
-	short count; // pin count associated with the page
-	int pageNum;//page number of this page
-	int fd; // PF file descriptor of this page
-}BFpage;
-
-/******************************************************************************/
 /*   Type definition for BFreq, buffer control block for BF and PF layers.    */
 /******************************************************************************/
 typedef struct _buffer_request_control {
@@ -99,8 +65,6 @@ typedef struct _buffer_request_control {
     int         pagenum;                /* Page number in the file */
     bool_t      dirty;                  /* TRUE if page is dirty */
 } BFreq;
-
-
 
 #endif
 

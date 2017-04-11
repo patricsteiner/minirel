@@ -8,6 +8,7 @@
 #include "minirel.h"
 #include "bf.h"
 
+#define FILE_CREATE_MASK (S_IRUSR|S_IWUSR|S_IRGRP)
 
 /*
  * default files
@@ -16,6 +17,7 @@
 #define FD1	10
 
 static BFreq breq;
+char	header[PAGE_SIZE];
 
 /*
  * Open the file, allocate as many pages in the file as the buffer manager
@@ -28,13 +30,20 @@ void writefile(char *fname)
     int fd,unixfd,pagenum;
     int error;
 
+    printf("\n******** %s opened for write ***********\n",fname);
+
     /* open file1 */
-    if ((unixfd = open(fname, O_RDWR|O_CREAT))<0){
+    if ((unixfd = open(fname, O_RDWR|O_CREAT, FILE_CREATE_MASK))<0){
 	printf("open failed: file1");
 	exit(-1);
     }
 
-    printf("\n******** %s opened for write ***********\n",fname);
+    /* write an empty page header */
+    memset(header, 0x00, PAGE_SIZE);
+    if(write(unixfd, header, PAGE_SIZE) != PAGE_SIZE) {
+	fprintf(stderr,"writefile writing header failed: %s\n",fname);
+	exit(-1);
+    }
 
     breq.fd = FD1;
     breq.unixfd = unixfd;
@@ -179,17 +188,13 @@ void printfile(char *fname)
 }
 
 /*
- * general tests of PF layer
+ * general tests of BF layer
  */
-void testpf1(void)
+void testbf1(void)
 {
-    int		i, error, pagenum;
-    char*	buf;
-    int		fd1, fd2;
     char        command[128];
-    int temp;
 
-    /* Making sure file don't exist */
+    /* Making sure file doesn't exist */
     unlink(FILE1);
 
     /* write to file1 */
@@ -229,10 +234,11 @@ void testpf1(void)
 
 main()
 {
-  /* initialize PF layer */
+  /* initialize BF layer */
   BF_Init();
 
-  printf("\n************* Starting testpf1 *************\n");
-  testpf1(); 
-  printf("\n************* End testpf1 ******************\n");
+  printf("\n************* Starting testbf1 *************\n");
+  testbf1(); 
+  printf("\n************* End testbf1 ******************\n");
 }
+
