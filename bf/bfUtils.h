@@ -6,16 +6,17 @@
 /******************************************************************************/
 
 typedef struct BFpage {
-	int unixfd; 	 /* PF file descriptor*/
-	PFpage fpage;   /*page data from a file*/
-	struct BFpage *nextpage;/*next in the linked list of buffer pages	*/
-	struct BFpage *prevpage;/* prev in the linked list of buffer pages*/
-	bool_t dirty; /*TRUE if page is dirty*/
-	short count; /* pin count associated with the page*/
-	int pagenum;/*page number of this page*/
-	int fd; /* PF file descriptor of this page*/
+	int unixfd; 	 				/* PF file descriptor*/
+	PFpage fpage;   				/*page data from a file*/
+	struct BFpage *nextpage;		/*next in the linked list of buffer pages	*/
+	struct BFpage *prevpage;		/* prev in the linked list of buffer pages*/
+	bool_t dirty; 					/*TRUE if page is dirty*/
+	short count; 					/* pin count associated with the page*/
+	int pagenum;					/*page number of this page*/
+	int fd; 						/* PF file descriptor of this page*/
 }BFpage;
 
+/*Typedefinition for the Hashtable entries/buckets*/
 typedef struct BFhash_entry {
   struct BFhash_entry *nextentry;     /* next hash table element or NULL */
   struct BFhash_entry *preventry;     /* prev hash table element or NULL */

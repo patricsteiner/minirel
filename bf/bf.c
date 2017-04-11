@@ -104,32 +104,40 @@ int BF_FlushPage(LRU* lru){
 
 /*
  * Unlike BF_GetBuf(), this function is used in situations where a new page is 
- * added to a file. Thus, if there already exists a buffer page in the pool associated
- * with a PF file ² and a page number passed over in the buffer control 
- * block bq, a PF error code must be returned. Otherwise, a new buffer page should 
- * be allocated (by page replacement if there is no free page in the buffer pool). 
+ * added to a file. 
+ * 
+ * Thus, if there already exists a buffer page in the pool associated
+ * with a PF file and a page number passed over in the buffer control 
+ * block bq, a PF error code must be returned. 
+ *
+ * Otherwise, a new buffer page should be allocated 
+ * (by page replacement if there is no free page in the buffer pool). 
+ * 
  * Then, its pin count is set to one, its dirty flag is set to FALSE, other appropriate
  * fields of the BFpage structure are set accordingly, and the page becomes the most
- * recently used. Note that it is not necessary to read anything from the file into 
- * the buffer page, because a brand new page is being appended to the file. This function
- * returns BFE_OK if the operation is successful, an error condition otherwise.
+ * recently used. 
+ * Note that it is not necessary to read anything from the file into 
+ * the buffer page, because a brand new page is being appended to the file. 
+ * This function returns BFE_OK if the operation is successful, an error condition otherwise.
+ *
  * Dev : Patric
  */
 int BF_AllocBuf(BFreq bq, PFpage **fpage){
 	BFhash_entry* e;
 	BFpage* page;
-	int res;
+	int error;
 
 	e = ht_get(ht, bq.fd, bq.pagenum);
-	if (e != NULL) {
-		return  BFE_PAGEINBUF;/* it is a new page, so it must not be in buffer yet */
-	}
+	
+	/* it is a new page, so it must not be in buffer yet */
+	if (e != NULL) return  BFE_PAGEINBUF;
+
 	page = fl_give_one(fl);
 	if (page == NULL) { /* there is no free page, need to replace one (aka find victim) */
 		/* remove a victim in lru and add a new page in the freelist */
-		res = BF_FlushPage(lru);
-		if(res != 0){
-			return  res;
+		error = BF_FlushPage(lru);
+		if(error != 0){
+			return  error;
 		} 
 		/* we use this new page */
 		page = fl_give_one(fl);	
@@ -145,14 +153,14 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 
 	*fpage = &page->fpage;
 
-	res=ht_add(ht, page);
-	if(res != 0){
-		return res; 
+	error=ht_add(ht, page);
+	if(error != 0){
+		return error; 
 	} 
 	
-	res=lru_add(lru, page);
-	if(res != 0){
-		return res; 
+	error=lru_add(lru, page);
+	if(error != 0){
+		return error; 
 	} 
 	return BFE_OK;
 }
@@ -215,7 +223,9 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 
 /*
  * This function unpins the page whose identification is passed over in the 
- * buffer control block bq. This page must have been pinned in the buffer already.
+ * buffer control block bq. 
+ * 
+ * This page must have been pinned in the buffer already.
  * Unpinning a page is carried out by decrementing the pin count by one. 
  * This function returns BFE_OK if the operation is successful, an error condition otherwise.
  * Dev : Patric
@@ -224,10 +234,10 @@ int BF_UnpinBuf(BFreq bq){
 	BFhash_entry* ht_entry;
 	
 	ht_entry = (ht_get(ht, bq.fd, bq.pagenum)); 
-	if (ht_entry == NULL ) { /* must be pinned */
-		return BFE_PAGENOTINBUF; 
-	}
 
+	/* page not in buffer */
+	if (ht_entry == NULL) return BFE_PAGENOTINBUF; 
+	/* page not pinned */
 	if(ht_entry->bpage->count<1)return BFE_UNPINNEDPAGE;
 
 	ht_entry->bpage->count = ht_entry->bpage->count - 1;
@@ -328,7 +338,7 @@ int BF_FlushBuf(int fd){
 }
 
 /*
- * prints the content of the lru list
+ * prints the content of the Buffer Pool
  * Dev : Paul
  */
 void BF_ShowBuf(){

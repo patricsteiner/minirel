@@ -118,14 +118,16 @@ int PF_CreateFile(char *filename){
 }	
 
 /*
- * This function destroys the file filename. The file should have existed, and should not be already 
- * open. This function returns PFE_OK if the operation is successful, an error condition otherwise.
+ * This function destroys the file filename. 
+ * The file should have existed, and should not be already open. 
+ * This function returns PFE_OK if the operation is successful, an error condition otherwise.
  * Dev: Patric
  */
 int PF_DestroyFile (char *filename) {
 	size_t i;
 	PFftab_ele* ftab_ele;
 	ftab_ele = NULL;
+
 	/* search for file in PFftab by filename*/
 	for (i = 0; i < PFftab_length; i++) {
 		if (strcmp(PFftab[i].fname, filename) == 0) {
@@ -142,7 +144,10 @@ int PF_DestroyFile (char *filename) {
 	else if (access(filename, F_OK) == -1) { /* if file does not exist */
 		return PFE_FILENOTEXISTS;
 	}
-	else return unlink(filename); /* delete it */
+	else{
+		unlink(filename);
+		return PFE_OK; /* delete it */
+	}
 }
 
 /*
@@ -200,7 +205,7 @@ int PF_OpenFile (char *filename){
     res= BF_UnpinBuf(bq); /* page has pinned to 0 now */
 	if(res!=0) BF_ErrorHandler(res);
 
-    printf("\nThe file '%s' containing %d pages has been added to the PFtable.\n", filename, pt->hdr.numpages);
+    printf("\nThe file '%s' containing %d pages (including header page) has been added to the PFtable.\n", filename, pt->hdr.numpages);
 	return bq.fd;
 }
 
@@ -256,7 +261,7 @@ int PF_CloseFile (int fd) {
 
     pt->valid = FALSE;
     PFftab_length--;
-    printf("\nThe file '%s' containing %d pages has been closed.\n", pt->fname, pt->hdr.numpages);
+    printf("\nThe file '%s' containing %d pages (including header page) has been closed.\n", pt->fname, pt->hdr.numpages);
 
 	return BFE_OK;
 }
@@ -267,9 +272,11 @@ int PF_CloseFile (int fd) {
  *    int     fd;          PF file descriptor
  *    int     *pageNum;    return the number of the page allocated
  *    char    **pagebuf;   return a pointer to the page content
- * This function allocates a page in the file associated with a file descriptor fd. This new page
- * is appended to the end of the file. This function also allocates a buffer entry corresponding to
- * the new page. The value of pageNum for the page being allocated must be determined from the
+ *
+ * This function allocates a page in the file associated with a file descriptor fd. 
+ * This new page is appended to the end of the file. 
+ * This function also allocates a buffer entry corresponding to the new page. 
+ * The value of pageNum for the page being allocated must be determined from the
  * information stored in the file header. The page allocated by this function is pinned and marked
  * dirty so that it will be written to the file eventually. Upon a successful page allocation, 
  * the file header must be updated accordingly. This function returns PFE_OK if the operation is
@@ -282,18 +289,14 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	PFpage* pfpage;
 	int error;
 
-	if (fd < 0 || fd >= PFftab_length) {
-		return PFE_FD;
-	}
-	/* TODO: appedned to end of the file? ...how to do that */
+	if (fd < 0 || fd >= PFftab_length) return PFE_FD;
 	
-	new_pagenum = PFftab[fd].hdr.numpages;	
-	/*alternate? way to get pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
+	new_pagenum = PFftab[fd].hdr.numpages;	/*or  pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
 	bq.fd = fd;
 	bq.unixfd = PFftab[fd].unixfd;
 	bq.dirty = TRUE;
 	bq.pagenum = new_pagenum;
-	/*pfpage = malloc(sizeof(PFpage));*/
+
 	if ((error = BF_AllocBuf(bq, &pfpage)) != BFE_OK) {
 		BF_ErrorHandler(error);
 	}
@@ -301,14 +304,12 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	if ((error = BF_TouchBuf(bq)) != BFE_OK) {
 		BF_ErrorHandler(error);
 	}
-	/* update page info */
+	/* update page info and header*/
 	*pagenum = new_pagenum;
 	*(pagebuf)=pfpage->pagebuf;
 	PFftab[fd].hdrchanged = TRUE;
-
 	PFftab[fd].hdr.numpages++ ;
 
-	/*print lru buffer*/
 	return PFE_OK;
 }
 
@@ -447,12 +448,13 @@ int PF_UnpinPage(int fd, int pageNum, int dirty) {
 	PFftab_ele* pfftab_ele;
 	BFreq bq;
 	int error;
+
 	if (fd < 0 || fd >= PFftab_length) {
 		return PFE_FD;
 	}
 	
 	pfftab_ele = &PFftab[fd];
-	/*alternate way to get pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
+	
 	if (pageNum < 0 || pageNum >= pfftab_ele->hdr.numpages) {
 		return PFE_INVALIDPAGE;
 	}

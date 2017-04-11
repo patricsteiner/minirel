@@ -271,15 +271,24 @@ void fl_print(Freelist* fl){
 *				HASHTABLE FUNCTIONS					*
 *****************************************************/
 
+/*
+ * this function implements a popular hash function to fill the hashtable with the BufferPool entries
+ */
 int ht_hashcode(Hashtable* ht, int fd, int pagenum) {
 	return (123 * fd * pagenum + 87) % 31 % ht->size;
 }
 
+/*
+ * Init the hashtable with only empty entries and a given size
+ * return a pointer to the hashtable, -1 if error
+ */
 Hashtable* ht_init(size_t size) {
 	size_t i;
 	Hashtable* ht;
 
 	ht = malloc(sizeof(Hashtable));
+	if(ht == NULL) return NULL;
+
 	ht->size = size;
 	ht->entries = malloc(sizeof(BFhash_entry*) * size); /* allocate memory for all entry pointers */
 	for (i = 0; i < size; i++) {
@@ -288,6 +297,11 @@ Hashtable* ht_init(size_t size) {
 	return ht;
 }
 
+/*
+ * add a BFPage into the given hashtable, if the bucket isn't empty, elem added to the last place of the chained list
+ * if page already exists : return BFE_HASHPAGEEXIST
+ * return BFE_OK if well inserted  
+ */
 int ht_add(Hashtable* ht, BFpage* page) {
 	int hc;
 	BFhash_entry* newEntry;
@@ -319,6 +333,11 @@ int ht_add(Hashtable* ht, BFpage* page) {
 	return BFE_OK;
 }
 
+/*
+ * remove a BFPage of the given hashtable
+ * if page doesn't exist: return BFE_HASHPNOTFOUND
+ * return BFE_OK if well removed  
+ */
 int ht_remove(Hashtable* ht, int fd, int pagenum) {
 	int hc;
 	BFhash_entry* e;
@@ -349,13 +368,18 @@ int ht_remove(Hashtable* ht, int fd, int pagenum) {
 	free(e);
 	return BFE_OK;
 }
-
+/*
+ * return a BFhash_entry associated to the given fd and pageNum
+ * return NULL if entry not found
+ */
 BFhash_entry* ht_get(Hashtable* ht, int fd, int pagenum) {
 	int hc = ht_hashcode(ht, fd, pagenum);
 	BFhash_entry* e = ht->entries[hc];
+	/*check if bucket is empty */
 	if (e == NULL) {
 		return NULL;
 	}
+	/* check if elem is in the bucket */
 	while (!(e->fd == fd && e->pagenum == pagenum)) {
 		e = e->nextentry;
 		if (e == NULL) {
@@ -365,6 +389,9 @@ BFhash_entry* ht_get(Hashtable* ht, int fd, int pagenum) {
 	return e;
 }
 
+/*
+ * Free the given hashtable
+ */
 int ht_free(Hashtable* ht) {
 	size_t i;
 	for (i = 0; i < ht->size; i++) {
@@ -380,7 +407,9 @@ int ht_free(Hashtable* ht) {
 	free(ht);
 	return BFE_OK;
 }
-
+/*
+ * print the hashtable
+ */
 void ht_print(Hashtable* ht) {
 	size_t i;
 	/*printf("-------------------- begin content of hashtable --------------------\n");*/
