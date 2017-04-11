@@ -165,19 +165,23 @@ int lru_mtu(LRU* lru, BFpage* mtu_page){ /*this mtu_page (considered already in 
 /****************************************************
 *				FREELIST FUNCTIONS					*
 *****************************************************/
+
+/*
+ * Initializes the freelist. Must before using the a freelist.
+ */
 Freelist* fl_init(int max_size){
 	int i;
 	BFpage* newPage;
 	BFpage* prev;
 
-	Freelist* fl = malloc(sizeof(Freelist)); /*address of the beginning of the free space */
+	Freelist* fl = malloc(sizeof(Freelist)); /* address of the beginning of the free space */
 	
-	if (fl == NULL){exit(EXIT_FAILURE);}
+	if (fl == NULL) { exit(EXIT_FAILURE); }
 
 	fl->max_size = max_size;
 	fl->size = 1;
-	fl->head = malloc(sizeof(BFpage)); /*allocate space for the first BFpage*/
-	if(fl->head == NULL){exit(EXIT_FAILURE);}
+	fl->head = malloc(sizeof(BFpage)); /* allocate space for the first BFpage */
+	if(fl->head == NULL) { exit(EXIT_FAILURE); }
 
 	strcpy(fl->head->fpage.pagebuf, "");
 	prev = fl->head;
@@ -186,9 +190,9 @@ Freelist* fl_init(int max_size){
 	prev->pagenum = 0;
 	prev->fd = 0;
 
-	for(i = 1; i< max_size; i++){
+	for(i = 1; i < max_size; i++){
 		newPage = malloc(sizeof(BFpage));
-		if(newPage == NULL){exit(EXIT_FAILURE);}
+		if (newPage == NULL) { exit(EXIT_FAILURE); }
 		strcpy(newPage->fpage.pagebuf, "");
 		prev->nextpage = newPage;
 		prev = newPage;
@@ -199,6 +203,9 @@ Freelist* fl_init(int max_size){
 	return fl;
 }
 
+/*
+ * Returns the head of this freelist and remove it from the list, NULL if list empty.
+ */
 BFpage* fl_give_one(Freelist* fl){
 	if(fl == NULL){exit(EXIT_FAILURE);}
 	if(fl->size == 0){return NULL;}
@@ -210,14 +217,17 @@ BFpage* fl_give_one(Freelist* fl){
 	}
 }
 
+/*
+ * Adds bpage to the freelist pointed by fl.
+ */
 int fl_add(Freelist* fl, BFpage* bpage){
-	if(fl == NULL || bpage == NULL){return 4;}
-	if(fl->size >= fl->max_size){
+	if (fl == NULL || bpage == NULL) { return 4; }
+	if (fl->size >= fl->max_size) {
 		printf("\nFL ERROR : Max Size reached");
 		return 3;
 	}
 
-	/*Cleaning the data into the BFPage*/
+	/* Cleaning the data into the BFPage */
 	bpage->dirty = FALSE;
 	bpage->count = 0;
 	bpage->pagenum = 0;
@@ -232,6 +242,9 @@ int fl_add(Freelist* fl, BFpage* bpage){
 	return BFE_OK;
 }
 
+/* 
+ * Frees all the memory used by this list and its elements.
+ */
 int fl_free(Freelist* fl){
 	int i;
 	if(fl == NULL){exit(EXIT_FAILURE);}
@@ -246,16 +259,19 @@ int fl_free(Freelist* fl){
 		free(fl);
 		return 0;
 	}
-	return 1; /*error*/
+	return 1; /* error */
 }
 
+/*
+ * Prints the content of the freelist pointed by fl.
+ */
 void fl_print(Freelist* fl){
 	BFpage* ptr = fl->head;
 
 	printf("\n------PRINTING LIST------");
 	printf("\n This freelist has %d entries\n", fl->size);
 	printf("\npagebuf data\tdirty\tcount\tpagenum\tfd ");
-	while(ptr!=NULL){
+	while (ptr != NULL) {
 		printf("\n[%s]", ptr->fpage.pagebuf);
 		printf("\t\t[%d]", ptr->dirty);
 		printf("\t[%d]", ptr->count);

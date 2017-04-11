@@ -156,15 +156,14 @@ int PF_DestroyFile (char *filename) {
  * This function returns a PF file descriptor if the operation is successful, an error condition otherwise.
  * Dev: Antoine
  */
-
-int PF_OpenFile (char *filename){
+int PF_OpenFile (char *filename) {
 	BFreq bq;
 	PFpage* fpageHeader;
 	struct stat file_stat;
 	int res, fd, unixfd;
 	PFftab_ele* pt;
 
-	if(PFftab_length>=PF_FTAB_SIZE){
+	if (PFftab_length >= PF_FTAB_SIZE) {
 		return PFE_FTABFULL;
 	}
 
@@ -217,7 +216,7 @@ int PF_OpenFile (char *filename){
  * If the file header has changed, it is written back to the file. 
  * The file is finally closed by using the system call close(). The file table entry corresponding to the file is freed. 
  * This function returns PFE_OK if the operation is successful, an error condition otherwise.
- *Dev: Antoine
+ * Dev: Antoine
  */
 int PF_CloseFile (int fd) {
 	PFftab_ele* pt;
@@ -226,7 +225,7 @@ int PF_CloseFile (int fd) {
 	int error;
 
 	if (fd < 0 || fd >= PFftab_length) return PFE_FD;
-	pt = (PFftab + sizeof(PFftab_ele)*fd);
+	pt = (PFftab + sizeof(PFftab_ele) * fd);
 
 	if(pt->hdrchanged=TRUE){
 	    /* to write the header : write with get buf, touchbuf and unpin */ 
@@ -265,8 +264,6 @@ int PF_CloseFile (int fd) {
 
 	return BFE_OK;
 }
-
-
 
 /* 
  *    int     fd;          PF file descriptor
@@ -405,9 +402,9 @@ int PF_GetThisPage (int fd, int pageNum, char **pagebuf){
  * After checking the validity of the fd and pageNum values, 
  * this function marks the page associated with pageNum and fd dirty. 
  * It returns PFE_OK if the operation is successful, an error condition otherwise.
- *Dev: Antoine 
+ * Dev: Antoine 
  */
-int PF_DirtyPage(int fd, int pageNum){
+int PF_DirtyPage(int fd, int pageNum) {
 	PFftab_ele* ftab_ele;
 	BFreq bq;
 	int resBF;
@@ -425,11 +422,11 @@ int PF_DirtyPage(int fd, int pageNum){
 	bq.unixfd = ftab_ele->unixfd;
     bq.fd = fd; 
     bq.pagenum = pageNum;
-    bq.dirty = TRUE; /*useless*/
+    bq.dirty = TRUE; /* useless */
 
     /* mark dirty in the buf */
     resBF = BF_TouchBuf(bq);
-    if(resBF!=BFE_OK) BF_ErrorHandler(resBF);
+    if(resBF != BFE_OK) BF_ErrorHandler(resBF);
 
 	return PFE_OK;
 }
@@ -478,9 +475,4 @@ int PF_UnpinPage(int fd, int pageNum, int dirty) {
     
 void PF_PrintError (char *error){
 	printf("\nPF_PrintError : %s\n", error);
-
 }
-
-
-
-
