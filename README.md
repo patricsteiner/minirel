@@ -10,6 +10,8 @@ MiniRel is a minimal single-user relational database management system (DBMS) gr
 The Software is composed of five layers: the buffer pool (BF) layer, the paged file (PF) layer, the heap file (HF) layer, the access method (AM) layer, and the front-end (FE) layer. The BF layer is the lowest in the layered architecture of MiniRel. The HF and AM layers are located at the same architectural level on top of the PF layer, with the FE layer being the highest level.
 
 ## Buffer Pool Layer
+There are several tricky tasks in the BF layer to guarantee an effective and efficient buffer management. The following sections elaborate on our specific solution for different problems
+
 ### Finding a Victim
 The two interface routines BF_GetBuf and BF_AllocBuf both require a free page in the buffer pool. If there is already a free page available, then we can just pop the head of the freelist and use this one. If there are no free pages available though, we need to find a victim. To do this, we implemented the helper function `int BF_FlushPage(LRU* lru)`. This function tries to find a victim page, a page that is in the bufferpool but not currently pinned. If one is found, the content of the page (in case it is dirty) is written to the disk. After that, the page is removed from the hashtable and added to the freelist.
 
@@ -28,8 +30,11 @@ Drawback is, of course, that some addidional memory is required. The additional 
 
 To retrieve a page from the hashtable, a hash out of the file descriptor (not the unix file descriptor, but the file desriptor used in PF layer) and the page number is calculated. To achieve a uniform distribution for the hashcodes, we use the universal hashfunction `h(x) = ((ax + b) mod p) mod m`, where a and b are arbitrary integers (123 and 87), p is a prime number (31), and m the size of the hashtable. x is the multiplication of file descriptor and pagenum, whereas 13 and 17 respectively are added to the two components, to avoid one of them being zero (numbers are chosen arbitrarily).
 
-
 ## Paged File Layer
+The implementation of the Paged File Layer is pretty straight forward, nothing too fancy going on here. We just use the underlying functions in the BF layer to implement the specified functionality.
+
+One point worth mentioning though is, that for every file created in PF layer, its header is written to the very first page of the file. In order to achieve this the page 0 is allocated as soon as a file is created and immediately written using the `memcpy` function.
+Consequently each file has always at least one page (pagenumber 0).
 
 
 ## Heap File LAyer
