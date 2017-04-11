@@ -226,7 +226,6 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 	if (pread(bq.unixfd, bfpage_entry->fpage.pagebuf, PAGE_SIZE, (bq.pagenum)*PAGE_SIZE) == -1) {
 		return  BFE_INCOMPLETEREAD;
 	}
-
 	/* value returned to the user */
 	*fpage = &(bfpage_entry->fpage);
 	return BFE_OK;
