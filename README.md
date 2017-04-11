@@ -20,7 +20,14 @@ There are only two functions that actually write to the disk, namely `int BF_Flu
 Reading a page from disk is handled in `int BF_GetBuf(BFreq bq, PFpage** fpage))`. In this interface routine, the function `pread(int fd, void *buf, size_t count, off_t offset)` is used, the counterpart to `pwrite` that is described in the section above.
 
 ### Error Handling
-In order to cover all kind of error, some error codes as been added in the file bfUtils.h. Also to be more comprehensive, the function `void BF_ErroHandler(int error)` print a comprehensive message and exit the program. This function is used in PF_Layer, when a primitive of BF_Layer is called and its return code is not BFE_OK then the BF_ErrorHandler is called with the return code as parameter.
+In order to cover all kind of errors, some error codes as been added in the file bfUtils.h. Also, to be more comprehensive, the function `void BF_ErroHandler(int error)` was implemented. It prints a clear message and exits the program after a certain error occurs. This function is used in PF layer, when a primitive of BF layer is called and its return code is not BFE_OK then the BF_ErrorHandler is called with the return code as parameter.
+
+### Page Retrieval
+To quickly check if a page is in the buffer pool or not, we use a hashtable that contains entries for all pages currently in the pool. This has the advantage that we do not need to scan through the LRU list for lookup but can instead get the result in constant time.
+Drawback is, of course, that some addidional memory is required. The additional memory is minimal and well worth the cost though.
+
+To retrieve a page from the hashtable, a hash out of the file descriptor (not the unix file descriptor, but the file desriptor used in PF layer) and the page number is calculated. To achieve a uniform distribution for the hashcodes, we use the universal hashfunction `h(x) = ((ax + b) mod p) mod m`, where a and b are arbitrary integers (123 and 87), p is a prime number (31), and m the size of the hashtable. x is the multiplication of file descriptor and pagenum, whereas 13 and 17 respectively are added to the two components, to avoid one of them being zero (numbers are chosen arbitrarily).
+
 
 ## Paged File Layer
 
