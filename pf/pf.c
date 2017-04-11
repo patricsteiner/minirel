@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include "minirel.h"
 #include "bf.h"
-#include "bfUtils.h"
+#include "../bf/bfUtils.h"
 #include "pf.h"
 #include "pfUtils.h"
 
