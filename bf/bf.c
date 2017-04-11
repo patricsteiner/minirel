@@ -15,7 +15,7 @@ Hashtable* ht;
 
 
 /*
- * Error Handler, print a message related to the error code.
+ * Error Handler, print a related message to the error code given in parameter.
  */
 void BF_ErrorHandler( int error_code){
 	switch( error_code){
@@ -316,7 +316,8 @@ int BF_FlushBuf(int fd){
 	do {
 	     if ( pt->fd == fd){
 		 if(pt->count == 0){ 
-			/* to remove from the lru list,to change pointer is enough */ 
+
+			/* to remove from the lru list,to change pointers is enough */ 
 			if (pt != lru->head){
 				if(pt != lru->tail) {
 					pt->prevpage->nextpage = pt->nextpage; 
