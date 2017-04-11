@@ -288,10 +288,15 @@ void fl_print(Freelist* fl){
 *****************************************************/
 
 /*
- * this function implements a popular hash function to fill the hashtable with the BufferPool entries
+ * This hashfunction uses universal hashing to create a hashcode out of a fd and pagenum.
+ * h(x) = ((ax + b) mod p) mod m
+ * where a and b are arbitrary integers (123 and 87), p is a prime number (31).
+ * and m the size of the hashtable.
+ * 13 and 17 respectively are added to the two components of the hashfunction,
+ * to avoid one of them being zero.
  */
 int ht_hashcode(Hashtable* ht, int fd, int pagenum) {
-	return (123 * fd * pagenum + 87) % 31 % ht->size;
+	return (123 * (fd + 13) * (pagenum + 17) + 87) % 31 % ht->size;
 }
 
 /*
@@ -384,6 +389,7 @@ int ht_remove(Hashtable* ht, int fd, int pagenum) {
 	free(e);
 	return BFE_OK;
 }
+
 /*
  * return a BFhash_entry associated to the given fd and pageNum
  * return NULL if entry not found
@@ -423,6 +429,7 @@ int ht_free(Hashtable* ht) {
 	free(ht);
 	return BFE_OK;
 }
+
 /*
  * print the hashtable
  */

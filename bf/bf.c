@@ -126,7 +126,6 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 	int error;
 	
 	/*checking validity of parameters*/
-	if(bq==NULL) return BFE_WRONGPARAMETER;
 	if(bq.pagenum<0 || bq.fd<0 || bq.unixfd<0) return BFE_WRONGPARAMETER;
 
 	/* the page is not in the buffer pool,impossible to get it with hastable, ht_get should return NULL */
@@ -185,7 +184,6 @@ int BF_GetBuf(BFreq bq, PFpage** fpage){
 	int res;
 	
 	/*checking validity of parameters*/
-	if(bq==NULL) return BFE_WRONGPARAMETER;
 	if(bq.pagenum<0 || bq.fd<0 || bq.unixfd<0) return BFE_WRONGPARAMETER;
 	
 	/* if the page is in the buffer pool,it is possible to get it with hastable (otherwise ht_get return NULL) */
@@ -247,7 +245,6 @@ int BF_UnpinBuf(BFreq bq){
 	BFhash_entry* ht_entry;
 
 	/*checking validity of parameters*/
-	if(bq==NULL) return BFE_WRONGPARAMETER;
 	if(bq.pagenum<0 || bq.fd<0 || bq.unixfd<0) return BFE_WRONGPARAMETER;
 	
 	/* the page is in the buffer pool, so it is possible to get it with hastable */
@@ -277,7 +274,6 @@ int BF_TouchBuf(BFreq bq){
     int res;
 
     /*checking validity of parameters*/
-    if(bq==NULL) return BFE_WRONGPARAMETER;
     if(bq.pagenum<0 || bq.fd<0 || bq.unixfd<0) return BFE_WRONGPARAMETER;
  
     /* pointer on the page is get by using hastable */
