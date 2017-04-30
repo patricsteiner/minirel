@@ -367,10 +367,19 @@ float_val),GE_OP,(char *)&value)) <0)
 
 }
 
+void testAntoine(){
+   /* making sure FILE1 doesn't exist */
+  unlink(FILE1);
+
+  /* Creating and opening the HF file */
+  printf("\nHF_CreateFile : %d\n", HF_CreateFile(FILE1,RECSIZE) );
+
+}
+
 main()
 {
   HF_Init();
-
+ /*
   printf("*** begin of hftest1 ***\n");
   hftest1();
   printf("*** end of hftest1 ***\n");
@@ -382,5 +391,9 @@ main()
   printf("*** begin of hftest3 *** \n");
   hftest3();
   printf("*** end of hftest3 *** \n");
+  */
+  printf("*** begin of testAntoine ***\n");
+  testAntoine();
+  printf("*** end of testAntoine ***\n");
 }
 

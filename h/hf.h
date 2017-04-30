@@ -74,7 +74,7 @@ bool_t          HF_ValidRecId(int fileDesc, RECID recid);
 #define PAGENUM unsigned short int
 #define RECNUM  unsigned short int
 
-typedef struct {
+typedef struct HFHeader{
     int RecSize;                 /* Record size */
     int RecPage;                 /* Number of records per page */
     int NumPg;                   /* Number of pages in file */

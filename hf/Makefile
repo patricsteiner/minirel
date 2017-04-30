@@ -14,6 +14,8 @@ CFLAGS	= -g -ansi -pedantic
 #CFLAGS	= -O -ansi -pedantic
 #############################################################################
 
+
+
 all: lib${LIB}.a ${LIB}test
 
 ${LIB}test: ${LIB}test.o lib${LIB}.a
@@ -27,4 +29,7 @@ clean:
 	rm -f lib${LIB}.a *.o ${LIB}test *.bak *~
 
 .c.o:; $(CC) $(CFLAGS) -c $< -I. -I$(INCDIR)
+
+antoine:
+	$(CC) $(CFLAGS) hftest.c hf.c ../bf/bf.c ../bf/bfUtils.c ../pf/pf.c -I ../h
 

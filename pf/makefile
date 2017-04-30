@@ -31,19 +31,3 @@ clean:
 
 .c.o:; $(CC) $(CFLAGS) -c $< -I. -I$(INCDIR)
 
-
-
-
-
-
-antoinetest:
-	$(CC) $(CFLAGS) testantoine.c pf.c ../bf/bf.c ../bf/bfUtils.c -I ../h
-
-antoine:
-	$(CC) $(CFLAGS) pftest.c pf.c ../bf/bf.c ../bf/bfUtils.c -I ../h
-
-antoineDebug:
-	$(CC) $(CFLAGSDEBUG) pftest.c pf.c ../bf/bf.c ../bf/bfUtils.c -I ../h
-
-patric:
-	$(CC) $(CFLAGS) pftest.c pf.c ../bf/bf.c ../bf/bfUtils.c -g -I ../h
