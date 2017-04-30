@@ -17,10 +17,12 @@ size_t PFftab_length;
 
 void PF_PrintTable(void){
 	size_t i;
-	printf("\n**** PF Table ****\n");
+	printf("\n\n******** PF Table ********\n");
+	printf("******* Length : %d *******\n", PFftab_length);
 	for(i=0; i<PFftab_length; i++){
-		printf("%d : %s\n", i, PFftab[i].fname);
+		printf("* %d : %s : %d pages  *\n", i, PFftab[i].fname, PFftab[i].hdr.numpages);
 	}
+	printf("**************************\n\n");
 }
 /*
  * Init the PF layer and also the BF layer by BF_Init
@@ -164,6 +166,7 @@ int PF_DestroyFile (char *filename) {
 int PF_OpenFile (char *filename) {
 	BFreq bq;
 	PFpage* fpageHeader;
+
 	struct stat file_stat;
 	int res, fd, unixfd;
 	PFftab_ele* pt;
@@ -177,7 +180,7 @@ int PF_OpenFile (char *filename) {
 		return PFE_FILENOTOPEN;
     }
 
-   	/* prepare buffer request */
+   	/* prepare buffer request to get fpageHeader */
     bq.unixfd = unixfd;
     bq.fd = PFftab_length; 
     bq.pagenum = 0; /*header is the first page of a file */
@@ -186,22 +189,22 @@ int PF_OpenFile (char *filename) {
     res = BF_GetBuf(bq, &fpageHeader); /* PIN of the file is set to 1 */
     if(res != BFE_OK) BF_ErrorHandler(res);
 
-    /* prepare new entry */
-    pt=(PFftab+sizeof(PFftab_ele)*PFftab_length);
+
+
+    /* fill the next array of the PF file table*/
+    pt = ( PFftab + sizeof(PFftab_ele) * PFftab_length );
 
     /* get inode */
-    if(fstat(unixfd, &file_stat)) {
-    	close(unixfd);
-        return PFE_UNIX;
-    } 
+    if(fstat(unixfd, &file_stat)) return PFE_UNIX;
     
     /* fill the new entry */
     pt->valid = TRUE;
     pt->inode = file_stat.st_ino;
     sprintf(pt->fname,"%s",filename);
     pt->unixfd = unixfd;
+    /* get the number of pages written in the pagebuf*/
+    /* sprintf((char*)fpageHeader->pagebuf, "%4d", pt->hdr.numpages);*/
     memcpy((int*) &(pt->hdr.numpages), (char*)fpageHeader->pagebuf, sizeof(int));
-    /*pt->hdr.numpages = atoi(fpageHeader->pagebuf);*/
     pt->hdrchanged = FALSE;
 
     PFftab_length++; /* for next entry */
@@ -306,8 +309,6 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	if ((error = BF_TouchBuf(bq)) != BFE_OK) {
 		BF_ErrorHandler(error);
 	}
-	PF_PrintTable();
-	printf("AllocPage, page buf : %s\n", pfpage->pagebuf);
 	/* update page info and header*/
 	*pagenum = new_pagenum;
 	*(pagebuf)=pfpage->pagebuf;
@@ -421,7 +422,6 @@ int PF_DirtyPage(int fd, int pageNum) {
 	ftab_ele = (PFftab + sizeof(PFftab_ele) * fd);
 
 	if (pageNum < 0 || pageNum >= ftab_ele->hdr.numpages){
-		printf("\nnumpages : %d\n", ftab_ele->hdr.numpages);
 		return PFE_INVALIDPAGE;
 	}
 

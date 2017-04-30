@@ -3,7 +3,7 @@ LIB	= bf
 INCDIR	= ${MINIREL_HOME}/h
 INCS	= 
 SRCS	= bf.c bfUtils.c
-TESTS	= bftest.c bftestPerso.c
+TESTS	= bftest.c 
 OBJS	= ${SRCS:.c=.o}
 LIBS	= lib${LIB}.a
 
