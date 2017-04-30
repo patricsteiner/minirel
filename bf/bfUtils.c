@@ -102,7 +102,7 @@ int lru_remove(LRU* lru,BFpage** victim){
 		
 	     pt=pt->prevpage;
 	}while(pt!=NULL); /*stop the loop after the tail*/
-	
+
 	return BFE_PAGENOTINBUF; /* if NULL is returned then the list is empty (first condition check, or after scanning all list: no page can be choose as a victim*/
 }
 
@@ -232,7 +232,6 @@ int fl_add(Freelist* fl, BFpage* bpage){
 	bpage->count = 0;
 	bpage->pagenum = 0;
 	bpage->fd = 0;
-	bpage->prevpage = NULL;
 
 	/*Adding it at the beginning of the freelist*/
 	bpage->nextpage = fl->head;

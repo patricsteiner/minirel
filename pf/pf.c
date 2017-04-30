@@ -15,8 +15,13 @@
 PFftab_ele *PFftab; 
 size_t PFftab_length;
 
-
-
+void PF_PrintTable(void){
+	size_t i;
+	printf("\n**** PF Table ****\n");
+	for(i=0; i<PFftab_length; i++){
+		printf("%d : %s\n", i, PFftab[i].fname);
+	}
+}
 /*
  * Init the PF layer and also the BF layer by BF_Init
  * Creates and initialized the PFftab: file table of PFfile
@@ -301,6 +306,8 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	if ((error = BF_TouchBuf(bq)) != BFE_OK) {
 		BF_ErrorHandler(error);
 	}
+	PF_PrintTable();
+	printf("AllocPage, page buf : %s\n", pfpage->pagebuf);
 	/* update page info and header*/
 	*pagenum = new_pagenum;
 	*(pagebuf)=pfpage->pagebuf;

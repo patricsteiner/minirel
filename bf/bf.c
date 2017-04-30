@@ -81,7 +81,6 @@ int BF_FlushPage(LRU* lru){
 	/*victim dirty : try to flush it, trhow error otherwise */
 	if(victim->dirty == TRUE){
 		if(pwrite(victim->unixfd, victim->fpage.pagebuf, PAGE_SIZE, ((victim->pagenum))*PAGE_SIZE) != PAGE_SIZE){
-
 			return  BFE_INCOMPLETEWRITE;
 		}
 	}
@@ -95,7 +94,7 @@ int BF_FlushPage(LRU* lru){
 
 	res = fl_add(fl, victim);	
 	if(res != 0){
-		
+
 		return res; 
 	} 
 }	
@@ -154,7 +153,7 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 	page->unixfd = bq.unixfd;
 	
 	/* the PF_page is returned within the parameter */
-	*fpage = &page->fpage;
+	*fpage = &(page->fpage);
 	
 	/*the page is add in hastable and lru list */
 
@@ -310,54 +309,55 @@ int BF_FlushBuf(int fd){
 	if (lru->tail == NULL) return BFE_OK; /*empty list case*/
 	pt = lru->tail;
 	do {
-	     if ( pt->fd == fd){
-		 if(pt->count == 0){ 
-
-			/* to remove from the lru list,to change pointers is enough */ 
-			if (pt != lru->head){
-				if(pt != lru->tail) {
-					pt->prevpage->nextpage = pt->nextpage; 
-					pt->nextpage->prevpage = pt->prevpage;
-				 }
-				else{	
-					pt->prevpage->nextpage = NULL;/*tail removed ==> the page before tail becomes the tail	*/	
-					lru->tail=pt->prevpage;
-				}
+	    if ( pt->fd == fd){
+			if(pt->count != 0){ /* The page is still in use, impossible to remoe the file */
+ 				return  BFE_PINNEDPAGE;
 			}
 			else{
-				if(pt != lru->tail) {
-						pt->nextpage->prevpage = NULL;/* head removed ==> next page becomes head */
-						lru->head=pt->nextpage;
-				 }
-				else{/* the head is the tail */
-					lru->head = NULL;
-					lru->tail = NULL;
+				/* to remove from the lru list,to change pointers is enough */ 
+				if (pt != lru->head){
+					if(pt != lru->tail) {
+						pt->prevpage->nextpage = pt->nextpage; 
+						pt->nextpage->prevpage = pt->prevpage;
+					 }
+					else{	
+						pt->prevpage->nextpage = NULL;/*tail removed ==> the page before tail becomes the tail	*/	
+						lru->tail=pt->prevpage;
+					}
 				}
-			}
-			/* if page is dirty, we write it on the disk */
-			if (pt->dirty){
-				ret = pwrite(pt->unixfd,pt->fpage.pagebuf, PAGE_SIZE, PAGE_SIZE*((pt->pagenum)));
+				else{
+					if(pt != lru->tail) {
+							pt->nextpage->prevpage = NULL;/* head removed ==> next page becomes head */
+							lru->head=pt->nextpage;
+					 }
+					else{/* the head is the tail */
+						lru->head = NULL;
+						lru->tail = NULL;
+					}
+				}
+				/* if page is dirty, we write it on the disk */
+				if (pt->dirty){
+					ret = pwrite(pt->unixfd,pt->fpage.pagebuf, PAGE_SIZE, PAGE_SIZE*((pt->pagenum)));
 
-				if (ret < 0){
-					printf("unix \n");
-					return  BFE_UNIX;
+					if (ret < 0){
+						printf("unix \n");
+						return  BFE_UNIX;
+					}
+					if (PAGE_SIZE > ret){
+						printf("incomp \n");
+						return  BFE_INCOMPLETEWRITE;
+					}			
 				}
-				if (PAGE_SIZE > ret){
-					printf("incomp \n");
-					return  BFE_INCOMPLETEWRITE;
-				}			
+				/* page is removed, next step: add it to the free list and remove it from hastable*/ 
+				lru->number_of_page-=1;
+				ht_remove(ht, pt->fd, pt->pagenum);
+				fl_add(fl, pt);
 			}
-			/* page is removed, next step: add it to the free list and remove it from hastable*/ 
-			lru->number_of_page-=1;
-			prev = pt->prevpage;
-			ht_remove(ht, pt->fd, pt->pagenum);
-			fl_add(fl, pt);
 		}
-		else { /* the page is still pinned */
- 			return  BFE_PINNEDPAGE;
-		}
-	}
-	pt = prev;
+
+		prev = pt->prevpage;
+		pt = prev;
+
 	} while (pt != NULL); /*stop the loop after the head*/
 
 	return BFE_OK; /*every page of the file which was in the LRU list, are now in the free list*/
