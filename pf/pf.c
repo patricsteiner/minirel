@@ -296,12 +296,13 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 
 	if (fd < 0 || fd >= PFftab_length) return PFE_FD;
 	
-	new_pagenum = PFftab[fd].hdr.numpages;	/*or  pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
+	new_pagenum = (PFftab + sizeof(PFftab_ele) * fd)->hdr.numpages;	/*or  pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
 	bq.fd = fd;
-	bq.unixfd = PFftab[fd].unixfd;
+	bq.unixfd = (PFftab + sizeof(PFftab_ele) * fd)->unixfd;
 	bq.dirty = TRUE;
 	bq.pagenum = new_pagenum;
 
+	printf("page num given to allocbuf %d /n", bq.pagenum);
 	if ((error = BF_AllocBuf(bq, &pfpage)) != BFE_OK) {
 		BF_ErrorHandler(error);
 	}
@@ -312,8 +313,9 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	/* update page info and header*/
 	*pagenum = new_pagenum;
 	*(pagebuf)=pfpage->pagebuf;
-	PFftab[fd].hdrchanged = TRUE;
-	PFftab[fd].hdr.numpages++ ;
+	(PFftab + sizeof(PFftab_ele) * fd)->hdrchanged = TRUE;
+	(PFftab + sizeof(PFftab_ele) * fd)->hdr.numpages++ ;
+	memcpy((PFftab + sizeof(PFftab_ele) * fd)->fname, "file32", 7);
 
 	return PFE_OK;
 }
@@ -420,7 +422,7 @@ int PF_DirtyPage(int fd, int pageNum) {
 	if (fd < 0 || fd >= PFftab_length) return PFE_FD;
 	
 	ftab_ele = (PFftab + sizeof(PFftab_ele) * fd);
-
+        printf( "page num and number of page of the file %d,  %d \n", pageNum, ftab_ele->hdr.numpages);
 	if (pageNum < 0 || pageNum >= ftab_ele->hdr.numpages){
 		return PFE_INVALIDPAGE;
 	}
@@ -457,7 +459,7 @@ int PF_UnpinPage(int fd, int pageNum, int dirty) {
 		return PFE_FD;
 	}
 	
-	pfftab_ele = &PFftab[fd];
+	pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd); 
 	
 	if (pageNum < 0 || pageNum >= pfftab_ele->hdr.numpages) {
 		return PFE_INVALIDPAGE;

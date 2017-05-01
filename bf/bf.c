@@ -131,8 +131,10 @@ int BF_AllocBuf(BFreq bq, PFpage **fpage){
 	e = ht_get(ht, bq.fd, bq.pagenum);
 	
 	/* it is a new page, so it must not be in buffer yet */
-	if (e != NULL) return  BFE_PAGEINBUF;
-
+	if (e != NULL){
+	 ht_print(ht);
+	 return  BFE_PAGEINBUF;
+	}
 	page = fl_give_one(fl);
 	if (page == NULL) { /* there is no free page, need to replace one (aka find victim) */
 		/* remove a victim in lru and add a new page in the freelist */
