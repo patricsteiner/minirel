@@ -3,10 +3,10 @@
 /* This type should be in hf.h*/
 
 typedef struct HFHeader{
-    int RecSize;                 /* Record size */
-    int RecPage;                 /* Number of records per page */
-    int NumPg;                   /* Number of pages in file */
-    int NumFrPgFile;             /* Number of free pages in the file */ 
+    int rec_size;                 /* Record size */
+    int rec_page;                 /* Number of records per page */
+    int num_pages;                   /* Number of pages in file */
+    int num_free_pages;             /* Number of free pagesin the file */ 
 } HFHeader;
 
 typedef struct HFftab_ele{

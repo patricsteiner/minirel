@@ -176,12 +176,12 @@ void testpf1(void)
     sprintf(command, "ls -al %s", FILE1);
     system(command);
 
-/*
+
     if (PF_DestroyFile(FILE1)!= PFE_OK){
         PF_PrintError(FILE1);
         exit(1);
     }
-*/
+
 }
 
 main()
