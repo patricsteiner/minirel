@@ -76,6 +76,9 @@ int PF_CreateFile(char *filename){
 	inode = file_stat.st_ino; 
 	
 	/*fill the next array of the PF file table*/
+	if (PFftab_length >= PF_FTAB_SIZE) {
+		return PFE_FTABFULL;
+	}
 	pt=(PFftab+sizeof(PFftab_ele)*PFftab_length);
 
 	pt->valid=TRUE;
@@ -137,8 +140,8 @@ int PF_DestroyFile (char *filename) {
 
 	/* search for file in PFftab by filename*/
 	for (i = 0; i < PFftab_length; i++) {
-		if (strcmp(PFftab[i].fname, filename) == 0) {
-			ftab_ele = &PFftab[i]; /* found the page */
+		if (strcmp((PFftab+sizeof(PFftab_ele)*i)->fname, filename) == 0) {
+			ftab_ele = (PFftab+sizeof(PFftab_ele)*i); /* found the page */
 			break;
 		}
 	}
@@ -249,16 +252,16 @@ int PF_CloseFile (int fd) {
     	memcpy((char*) fpageHeader->pagebuf, (int *)&(pt->hdr.numpages), sizeof(int));
     	/* say to buffer pool that this page is dirty*/
     	error = BF_TouchBuf(bq);
-    	if(error!=BFE_OK) return error;
+    	if(error!=BFE_OK) BF_ErrorHandler(error);
 
     	/* Unpin the page after */
     	error = BF_UnpinBuf(bq);
-    	if (error != BFE_OK) return error;
+    	if (error != BFE_OK) BF_ErrorHandler(error);
 	}
 
 	/* Flush buffer before closing the file */
 	error = BF_FlushBuf(fd);
-	if(error != BFE_OK) return error;
+	if(error != BFE_OK) BF_ErrorHandler(error);
 
 	/* Close the file with unix close*/
 	if (close(pt->unixfd) < 0) {
@@ -294,6 +297,9 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	PFpage* pfpage;
 	int error;
 
+	if(pagenum==NULL || pagebuf==NULL){
+			return PFE_NULLARG;
+	}
 	if (fd < 0 || fd >= PFftab_length) return PFE_FD;
 	
 	new_pagenum = (PFftab + sizeof(PFftab_ele) * fd)->hdr.numpages;	/*or  pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
@@ -422,7 +428,7 @@ int PF_DirtyPage(int fd, int pageNum) {
 	if (fd < 0 || fd >= PFftab_length) return PFE_FD;
 	
 	ftab_ele = (PFftab + sizeof(PFftab_ele) * fd);
-        printf( "page num and number of page of the file %d,  %d \n", pageNum, ftab_ele->hdr.numpages);
+        /*printf( "page num and number of page of the file %d,  %d \n", pageNum, ftab_ele->hdr.numpages);*/
 	if (pageNum < 0 || pageNum >= ftab_ele->hdr.numpages){
 		return PFE_INVALIDPAGE;
 	}
@@ -469,19 +475,49 @@ int PF_UnpinPage(int fd, int pageNum, int dirty) {
 	bq.unixfd = pfftab_ele->unixfd;
 	bq.dirty = dirty;
 	bq.pagenum = pageNum;
-	
-	if ((error = BF_UnpinBuf(bq)) != BFE_OK) {
-		BF_ErrorHandler(error);
-	}
 	if (dirty) { /* mark page as dirty when it should be dirty */
 		if ((error = BF_TouchBuf(bq)) != BFE_OK) {
 			BF_ErrorHandler(error);
 		}
 	}
+	
+	if ((error = BF_UnpinBuf(bq)) != BFE_OK) {
+		BF_ErrorHandler(error);
+	}
+	
 	return PFE_OK;
 }
 
+
     
-void PF_PrintError (char *error){
-	printf("\nPF_PrintError : %s\n", error);
+void PF_PrintError (char* error){
+
+	printf( "\nPF: Error , message :%s \n",error);
+	exit(-1);
+}
+
+/*
+ *used in HF and AM layer to return an understandable message of error 
+ */
+void PF_ErrorHandler(int error){
+	switch( error){
+		case PFE_INVALIDPAGE: printf("\n PF: the page number is negative or superior or equal than the number of page in the file(PFE_INVALIDPAGE) \n"); break;
+		
+		case PFE_FD: printf( " \nPF: pf file descriptor is negative or superior than the size of PF file table(PFE_FD) \n\n ");break;
+
+		case PFE_EOF: printf( " \n PF:the wanted page does not exist, page number >= number of page in its file. (PFE_EOF)  \n\n ");break;
+
+		case PFE_UNIX: printf(" \n PF: unix function did not succeed ( open(fd) or stat(), PFE_UNIX)\n\n ");break;
+
+		case PFE_FILENOTOPEN:printf(" \n PF:primitive open(filename) did not succeed   \n\n");break;
+
+		case PFE_FTABFULL: printf( " \n PF: PF file table is full, impossible to open or create a file ( PFE_FTABFULL) \n\n");break;
+
+		case PFE_NULLARG: printf( " \n PF: given argument are NULL, this error avoids a seg fault \n\n");break;
+
+		case PFE_OK: printf( "\n PF: error handler called but no error \n\n "); break;
+
+		default: printf( " \n  PF: unused error code : %d \n\n ", error);
+	}
+	exit(-1);
 }
