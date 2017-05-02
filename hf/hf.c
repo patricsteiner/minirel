@@ -136,7 +136,7 @@ int HF_CreateFile(char *filename, int RecSize){
 	if(fd != PFE_OK){
 		PF_ErrorHandler(error);
 	}
-	printf("Open file\n");
+	printf("Open file \n");
 
 
 	/* fill the array of the hf file table*/ 
@@ -178,7 +178,7 @@ int HF_CreateFile(char *filename, int RecSize){
 	}
 
 
-	error = PF_CloseFile(pt->fd);
+	/*error = PF_CloseFile(pt->fd);*/
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
 	}
