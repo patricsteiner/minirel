@@ -148,6 +148,7 @@ int lru_mtu(LRU* lru, BFpage* mtu_page){ /*this mtu_page (considered already in 
 			mtu_page->nextpage=lru->head;
 			lru->head->prevpage=mtu_page;
 			lru->head=mtu_page;
+			lru->head->prevpage=NULL;
 			
 		}
 		else{
@@ -223,7 +224,7 @@ BFpage* fl_give_one(Freelist* fl){
 int fl_add(Freelist* fl, BFpage* bpage){
 	if (fl == NULL || bpage == NULL) { return 4; }
 	if (fl->size >= fl->max_size) {
-		printf("\nFL ERROR : Max Size reached");
+		/*printf("\nFL ERROR : Max Size reached");*/
 		return 3;
 	}
 
@@ -232,9 +233,11 @@ int fl_add(Freelist* fl, BFpage* bpage){
 	bpage->count = 0;
 	bpage->pagenum = 0;
 	bpage->fd = 0;
+	
 
 	/*Adding it at the beginning of the freelist*/
 	bpage->nextpage = fl->head;
+	bpage->prevpage=NULL;
 	fl->head = bpage;
 	fl->size += 1;
 		

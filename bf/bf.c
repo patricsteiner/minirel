@@ -311,16 +311,29 @@ int BF_FlushBuf(int fd){
 	if (lru->tail == NULL) return BFE_OK; /*empty list case*/
 	pt = lru->tail;
 	do {
+            printf("passage \n");
+	    prev = pt->prevpage;
 	    if ( pt->fd == fd){
+			/*
+			*	
+			*/
 			if(pt->count != 0){ /* The page is still in use, impossible to remoe the file */
  				return  BFE_PINNEDPAGE;
 			}
 			else{
+				printf( "bool %d \n" , lru->head->prevpage==NULL);
 				/* to remove from the lru list,to change pointers is enough */ 
+				printf( "bool %d \n" , pt==NULL);
+				printf( "bool %d \n" , lru->head==NULL);
+					printf( "page num %d \n" , pt->pagenum);
+				
 				if (pt != lru->head){
+					
 					if(pt != lru->tail) {
+						if(pt->prevpage!=NULL){
 						pt->prevpage->nextpage = pt->nextpage; 
 						pt->nextpage->prevpage = pt->prevpage;
+						}
 					 }
 					else{	
 						pt->prevpage->nextpage = NULL;/*tail removed ==> the page before tail becomes the tail	*/	
@@ -335,12 +348,13 @@ int BF_FlushBuf(int fd){
 					else{/* the head is the tail */
 						lru->head = NULL;
 						lru->tail = NULL;
+						
 					}
 				}
 				/* if page is dirty, we write it on the disk */
 				if (pt->dirty){
 					ret = pwrite(pt->unixfd,pt->fpage.pagebuf, PAGE_SIZE, PAGE_SIZE*((pt->pagenum)));
-
+					pt->pagenum; 
 					if (ret < 0){
 						printf("unix \n");
 						return  BFE_UNIX;
@@ -356,8 +370,7 @@ int BF_FlushBuf(int fd){
 				fl_add(fl, pt);
 			}
 		}
-
-		prev = pt->prevpage;
+		
 		pt = prev;
 
 	} while (pt != NULL); /*stop the loop after the head*/
