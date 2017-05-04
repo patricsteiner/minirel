@@ -145,13 +145,14 @@ int PF_DestroyFile (char *filename) {
 			break;
 		}
 	}
-	if (ftab_ele == NULL) { /* if file not in PFftab */
-		return PFE_FILENOTINTAB;
-	}
-	else if (ftab_ele->valid == TRUE) { /* if file open */
-		return PFE_FILEOPEN;
-	}
-	else if (access(filename, F_OK) == -1) { /* if file does not exist */
+	
+	if(ftab_ele!=NULL){ /*if NULL may the file was the last of the table and has been freed */
+			if (ftab_ele->valid == TRUE) { /* if file open */
+				return PFE_FILEOPEN;
+			}
+		}
+	
+	if (access(filename, F_OK) == -1) { /* file does not exist */
 		return PFE_FILENOTEXISTS;
 	}
 	else{
@@ -267,11 +268,11 @@ int PF_CloseFile (int fd) {
 	if (close(pt->unixfd) < 0) {
 		printf("close failed for file '%s'", pt->fname);
 		return PFE_UNIX;
-    }
+         }
 
-    pt->valid = FALSE;
-    PFftab_length--;
-    printf("\nThe file '%s' containing %d pages (including header page) has been closed.\n", pt->fname, pt->hdr.numpages);
+	 pt->valid = FALSE;
+	 if(fd == (PFftab_length-1)) PFftab_length--;
+	    printf("\nThe file '%s' containing %d pages (including header page) has been closed.\n", pt->fname, pt->hdr.numpages);
 
 	return BFE_OK;
 }
@@ -321,7 +322,7 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	*(pagebuf)=pfpage->pagebuf;
 	(PFftab + sizeof(PFftab_ele) * fd)->hdrchanged = TRUE;
 	(PFftab + sizeof(PFftab_ele) * fd)->hdr.numpages++ ;
-	memcpy((PFftab + sizeof(PFftab_ele) * fd)->fname, "file32", 7);
+	
 
 	return PFE_OK;
 }
@@ -510,6 +511,10 @@ void PF_ErrorHandler(int error){
 		case PFE_UNIX: printf(" \n PF: unix function did not succeed ( open(fd) or stat(), PFE_UNIX)\n\n ");break;
 
 		case PFE_FILENOTOPEN:printf(" \n PF:primitive open(filename) did not succeed   \n\n");break;
+	
+		case PFE_FILEOPEN:printf(" \n PF: the file has to be destroy but it is still open   \n\n");break;
+
+		case PFE_FILENOTEXISTS:printf(" \n PF:the file you ask to delete,does not exist   \n\n");break;
 
 		case PFE_FTABFULL: printf( " \n PF: PF file table is full, impossible to open or create a file ( PFE_FTABFULL) \n\n");break;
 

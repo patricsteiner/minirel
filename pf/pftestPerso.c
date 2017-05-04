@@ -75,6 +75,18 @@ void writefiles(char *fname1, char *fname2){
        	printf("%d\n", error);
 		exit(1);
     }
+	if ((error = PF_DestroyFile(FILE2))!= PFE_OK){
+		printf("héhéhéh %d\n", error);
+	   	
+		PF_PrintError("close file2");
+       	
+		exit(1);
+    }
+	 if ((error = PF_DestroyFile(FILE1))!= PFE_OK){
+	   	PF_PrintError("close file2");
+       	printf("%d\n", error);
+		exit(1);
+    }
 
 }
 

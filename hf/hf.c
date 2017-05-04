@@ -178,7 +178,7 @@ int HF_CreateFile(char *filename, int RecSize){
 	}
 
 
-	/*error = PF_CloseFile(pt->fd);*/
+	error = PF_CloseFile(pt->fd);
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
 	}
