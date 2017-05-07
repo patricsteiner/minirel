@@ -367,12 +367,22 @@ float_val),GE_OP,(char *)&value)) <0)
 
 }
 
-void testAntoine(){
+/*
+ * Create 3 files, 
+ */
+void testPerso(){
    /* making sure FILE1 doesn't exist */
   unlink(FILE1);
+  unlink(FILE2);
 
-  /* Creating and opening the HF file */
-  printf("\nHF_CreateFile : %d\n", HF_CreateFile(FILE1,RECSIZE) );
+  /* Creating the HF file */
+  printf("\nHF_CreateFile : %d\n", HF_CreateFile(FILE1,50));
+  printf("HF_CreateFile : %d\n", HF_CreateFile(FILE2,80));
+
+  /* Opening the files */ 
+  printf("\nHF_OpenFile : %d\n", HF_OpenFile(FILE1));
+  printf("HF_OpenFile : %d\n", HF_OpenFile(FILE2));
+
 
 }
 
@@ -392,8 +402,8 @@ main()
   hftest3();
   printf("*** end of hftest3 *** \n");
   */
-  printf("*** begin of testAntoine ***\n");
-  testAntoine();
-  printf("*** end of testAntoine ***\n");
+  printf("*** begin of test perso ***\n");
+  testPerso();
+  printf("*** end of test perso ***\n");
 }
 

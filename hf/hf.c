@@ -89,7 +89,7 @@ void HF_Init(void){
 void HF_ComputeRecPage(int rec_size, int* rec_per_page){
 	int rec_page=0; 
        
-        int rest,n_packed,x;
+    int rest,n_packed,x;
 
 	x=0;
 	rest= ( (PF_PAGE_SIZE  - sizeof(int) ) % (rec_size) )*8 ;  /* it is the number of unused bits in a packed formated page*/
@@ -192,8 +192,53 @@ int HF_DestroyFile(char *filename){
 	return 0;
 }
 
+/*
+ * This function opens a file called fileName by calling PF_OpenFile(). 
+ * Its return value is the HF file descriptor of the file if the new file has been successfully opened; 
+ * an HF error code is returned otherwise. 
+ * In addition to opening the file, this function will make an entry in the HF file table.
+ * dev : antoine
+ */
 int HF_OpenFile(char *filename){
-	return 0;
+	int error, fd, fileDesc;
+	HFftab_ele *pt;
+	char *pagebuf;
+
+	fileDesc = HFftab_length;
+	if(fileDesc >= HF_FTAB_SIZE){
+		return HFE_FTABFULL;
+	}
+	
+	fd = PF_OpenFile(filename);
+	if(fd < 0){
+		PF_ErrorHandler(fd);
+	}
+
+	/* read the recc_size, num pages, num free pages which are stored on the second page of the file (index = 1) */ 
+	error = PF_GetThisPage(fd, 1, &pagebuf);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
+
+
+	/* Fill the array of the hf filetable */
+	pt = HFftab + sizeof(HFftab_ele)*HFftab_length;
+	HFftab_length ++;
+
+	pt->fd = fd;
+	pt->valid = TRUE;
+	memcpy(pt->fname, filename, sizeof(filename));
+
+	memcpy((int*) &pt->header.rec_size, (char*) (pagebuf), sizeof(int));
+	memcpy((int*) &pt->header.rec_page, (char*) (pagebuf + 4), sizeof(int));
+	memcpy((int*) &pt->header.num_pages, (char*) (pagebuf + 8), sizeof(int));
+	memcpy((int*) &pt->header.num_free_pages, (char*) (pagebuf + 12), sizeof(int));
+
+	printf("file %s, with fd %i is opened\n", filename, fileDesc);
+	printf("Entry added to HF Table : %d, %d, %d, %d\n", pt->header.rec_size, pt->header.rec_page, pt->header.num_pages, pt->header.num_free_pages);
+	/* need also to fill the header bitmap (to know where are the free pages) */
+
+	return fileDesc;
 }
 
 int	HF_CloseFile(int fileDesc){
