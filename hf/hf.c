@@ -227,14 +227,15 @@ int HF_OpenFile(char *filename){
 
 	pt->fd = fd;
 	pt->valid = TRUE;
-	memcpy(pt->fname, filename, sizeof(filename));
+	/* memcpy(pt->fname, filename, sizeof(filename)); */
+	sprintf(pt->fname, "%s", filename);
 
 	memcpy((int*) &pt->header.rec_size, (char*) (pagebuf), sizeof(int));
 	memcpy((int*) &pt->header.rec_page, (char*) (pagebuf + 4), sizeof(int));
 	memcpy((int*) &pt->header.num_pages, (char*) (pagebuf + 8), sizeof(int));
 	memcpy((int*) &pt->header.num_free_pages, (char*) (pagebuf + 12), sizeof(int));
 
-	printf("file %s, with fd %i is opened\n", filename, fileDesc);
+	printf("file %s, with fd %i is opened\n", pt->fname, fileDesc);
 	printf("Entry added to HF Table : %d, %d, %d, %d\n", pt->header.rec_size, pt->header.rec_page, pt->header.num_pages, pt->header.num_free_pages);
 	/* need also to fill the header bitmap (to know where are the free pages) */
 
@@ -245,13 +246,91 @@ int	HF_CloseFile(int fileDesc){
 	return 0;
 }
 
+/*
+ * This function inserts the record pointed to by record into the open file associated with HFfd. 
+ * This function returns the record id (of type RECID) that is assigned to the newly inserted record 
+ * if the insertion is successful.
+ * An HF error code otherwise.
+ * dev : antoine
+ */
 RECID HF_InsertRec(int fileDesc, char *record){
 	RECID res;
+	HFftab_ele *pt;
+	int pagenum;
+	int error;
+	int bitmap_size;
+	int i;
+	char* datapagebuf; 
+
+	if(fileDesc < 0 || fileDesc > HF_FTAB_SIZE){ 
+		res.recnum = HFE_FD;
+		res.pagenum = HFE_FD;
+		return res;
+	}
+
+	pt = HFftab + sizeof(HFftab_ele)*fileDesc;
+	printf("name, valid :%s, %d\n",pt->fname, pt->valid );
+	if (pt->valid == FALSE){ 
+		res.recnum = HFE_FILENOTOPEN;
+		res.pagenum = HFE_FILENOTOPEN;
+		return res;
+	}
+
+	/* FIND A PAGE */
+	if(pt->header.num_free_pages == 0){
+		/* no more free pages => allocate a new one */
+		error = PF_AllocPage(pt->fd, &pagenum, &datapagebuf);
+		if(error != PFE_OK){
+			PF_ErrorHandler(error);
+		}
+
+		/* write the datapagebuf 
+		 - bitmap | 10000000000....0000 (bytes)| 1 (int)| record (char) | | |
+		 */
+		bitmap_size = (pt->header.rec_page%8)==0 ?(pt->header.rec_page / 8): (pt->header.rec_page/8)+1;
+		datapagebuf[0]=1;
+		for (i=1;i<=bitmap_size;i++) {
+			datapagebuf[i]=0;
+		}
+
+        printf("\nbitmap : %s \n", datapagebuf);
+        /*
+		memcpy((char*) datapagebuf + (rec_size/8), 1, sizeof(int)) /* number of records in the page */
+
+
+	}
+
+	/* Algorithm : 
+	 * Chech file desc
+	 * Get the HFftab_elem associated
+	 ******** FIND A PAGE *********
+	 * If num_free_pages == 0
+		allocate a page, write the bitmap (only zeroes), set recnum = 0 and pagenum (given by PFallocpage)
+		update the HFtab_elem info 
+	 * else, find the first freepage by looping through the char array (1 : full, 0 : free, -1 : not created)
+	 	for the first number found, break the loop and get pagenum.
+	 	if no more freespace in the char array, reach next header page (numPageHeader + len_bitmap + 1) (repeat under freespace is found) 
+	 
+	 ******** FIND A FREE RECNUM ***********
+	 * Once we found a page, get the bitmap, and the remaining space
+	 * look for a free recnum (1 : full, 0 : free) using a readbytes mask function
+	 * write the record into the appropriate recnum (check the size of the record)
+	 * write the chage into the bitmap
+	 * update the remainig slots (if full, update the correct char array and hftab_elem_info)
+	 * 
+	 * return RECID res with the appropriate recnum and pagenum 
+	 */
 	res.recnum = 0;
 	res.pagenum = 0;
 	return res;
 }
 
+/*
+ * This function deletes the record indicated by recId from the file associated with HFfd. 
+ * It returns HFE_OK if the deletion is successful.
+ * An HF error code otherwise.
+ * dev : antoine
+ */
 int	HF_DeleteRec(int fileDesc, RECID recId){
 	return 0;
 }
@@ -299,4 +378,14 @@ void HF_PrintError(char *errString){
  */
 bool_t HF_ValidRecId(int fileDesc, RECID recid){
 	return TRUE;
+}
+
+void HF_PrintTable(void){
+	size_t i;
+	printf("\n\n******** HF Table ********\n");
+	printf("******* Length : %d *******\n", HFftab_length);
+	for(i=0; i<HFftab_length; i++){
+		printf("* %d : %s : %d valid  *\n", i, HFftab[i].fname, HFftab[i].valid);
+	}
+	printf("**************************\n\n");
 }

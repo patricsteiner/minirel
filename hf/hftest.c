@@ -371,19 +371,40 @@ float_val),GE_OP,(char *)&value)) <0)
  * Create 3 files, 
  */
 void testPerso(){
+  int fd1, recsize1;
+  int fd2, recsize2;
+  RECID res;
+  recsize1 = 50;
+  recsize2 = 60;
+
+  char record1[50];
+
    /* making sure FILE1 doesn't exist */
   unlink(FILE1);
   unlink(FILE2);
 
   /* Creating the HF file */
-  printf("\nHF_CreateFile : %d\n", HF_CreateFile(FILE1,50));
-  printf("HF_CreateFile : %d\n", HF_CreateFile(FILE2,80));
+  printf("\nHF_CreateFile : %d\n", HF_CreateFile(FILE1,recsize1));
+  printf("HF_CreateFile : %d\n", HF_CreateFile(FILE2,recsize2));
 
   /* Opening the files */ 
-  printf("\nHF_OpenFile : %d\n", HF_OpenFile(FILE1));
-  printf("HF_OpenFile : %d\n", HF_OpenFile(FILE2));
+  HF_PrintTable();
+  printf("\nHF_OpenFile : %d\n", fd1 = HF_OpenFile(FILE1));
+  HF_PrintTable();
+  printf("HF_OpenFile : %d\n", fd2 = HF_OpenFile(FILE2)); 
+  /* THE SECOND FILE IS NOT CORRECTLY ADDED TO THE HF Table !!! */
+  HF_PrintTable();
 
 
+  /* Inserting record */
+    /* clearing up the record */
+  memset(record1,' ',50);
+  sprintf(record1, "record%d", 0);
+
+
+  printf("\n Inserting record in file : %d\n", fd1);
+  res = HF_InsertRec(fd1, record1);
+  printf("rec id : %d, %d\n", res.recnum, res.pagenum);
 }
 
 main()
