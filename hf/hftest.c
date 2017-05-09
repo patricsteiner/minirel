@@ -400,12 +400,31 @@ void testPerso(){
   /* Inserting record */
     /* clearing up the record */
 
-  for(i = 0; i<=90; i++){
+  for(i = 0; i<=150; i++){
     memset(record1,' ',50);
     sprintf(record1, "record %d", i);
     res = HF_InsertRec(fd1, record1);
     printf("'%s' : (%d, %d)\n",record1, res.recnum, res.pagenum);
   }
+  
+  res.pagenum = 2;
+  for(i = 0; i<= 80; i++){
+    if(i%2 == 0){
+      res.recnum = i;
+      printf("\n DELETING RECORDS %d\n", res.recnum);
+      HF_DeleteRec(fd1, res);
+    }
+  }
+
+
+  for(i = 150; i <= 150 + 40; i++){
+    memset(record1,' ',50);
+    sprintf(record1, "record %d", i);
+    res = HF_InsertRec(fd1, record1);
+    printf("'%s' : (%d, %d)\n",record1, res.recnum, res.pagenum);
+  }
+
+
 }
 
 main()
