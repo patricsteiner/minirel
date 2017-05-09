@@ -208,7 +208,7 @@ int PF_OpenFile (char *filename) {
     pt->unixfd = unixfd;
     /* get the number of pages written in the pagebuf*/
     /* sprintf((char*)fpageHeader->pagebuf, "%4d", pt->hdr.numpages);*/
-    memcpy((int*) &(pt->hdr.numpages), (char*)fpageHeader->pagebuf, sizeof(int));
+    memcpy((int*) &(pt->hdr.numpages), (char*)fpageHeader->pagebuf, 	(int));
     pt->hdrchanged = FALSE;
 
     PFftab_length++; /* for next entry */
