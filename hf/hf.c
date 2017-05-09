@@ -23,6 +23,20 @@ void printByte(char n){
 	printf("\t");
 }
 
+void printPageDirectory(HFftab_ele* pt){
+	int i,size;
+	size = PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char);
+
+	printf("\nPage directory of %s\n", pt->fname);
+	for (i = 0; i < size; i++){
+		if(pt->header.pageDirectory[i] == 0){
+			break;
+		}
+		printf("%d|", pt->header.pageDirectory[i]);
+	}
+	printf("\n");
+
+}
 
 void HF_PrintDataPage(char* buf, HFftab_ele* pt){
 	int i, N, bitmapsize;
@@ -349,20 +363,28 @@ RECID HF_InsertRec(int fileDesc, char *record){
 
 		pt->header.num_free_pages ++;
 		pt->header.num_pages ++;
-
+		pt->header.pageDirectory[pt->header.num_pages - 3] = -1;
+		printf("\nNEW DATA PAGE ALLOCATED, now %d datapages\n", pt->header.num_pages -2);
+		printPageDirectory(pt);
+		
 		
 
 	}else{ 
+
 		broke = 0;
-		/* Find a free page */
-		for(i=2; i < pt->header.num_pages; i++){
-			if(pt->header.pageDirectory[i] == 0){
-				pagenum = i;
-				printf("\nSpace available on page %d\n", pagenum);
+		/* Find a page with freespace== -1 */
+		for(i=0; i < pt->header.num_pages-2 | broke ; i++){
+			if(pt->header.pageDirectory[i] == -1){
+				pagenum = i + 2 ;
+				printf("\nSpace available on page %d\n", pagenum );
+				broke = 1;
 				break;
 			}
 		}
-
+		if( !broke ){
+			printf("NO BROKE");
+			exit(-1);
+		}
 		/* find a free slot on this page */
 		error = PF_GetThisPage(pt->fd, pagenum, &datapagebuf);
 		if(error != PFE_OK){PF_ErrorHandler(error);}
@@ -374,11 +396,11 @@ RECID HF_InsertRec(int fileDesc, char *record){
 		 *	update the number of used slots (if == max number of slots, update the page directory)
 		 *	insert the record at the correct position
 		 */
+		broke = 0;
 		for(i = 0; i < bitmap_size & !broke; i++){
 			for(j = 0; j < 8; j++){
 				bit = ( datapagebuf[i] & (int) pow(2,j) ) >> j;
 				if(bit == 0){
-					printf("Slot find (%d, %d)\n", i, j);
 					datapagebuf[i] |= (int) pow(2,j);
 					broke = 1;
 					recnum = 8*i + j;
@@ -390,9 +412,15 @@ RECID HF_InsertRec(int fileDesc, char *record){
 		printf("Insert '%s' on page %d, slot %d\n", record, pagenum, recnum);
 		memcpy((int*)&N, (char*) (&datapagebuf[bitmap_size]), sizeof(int));
 		N++;
-		memcpy(( char*) ( &datapagebuf[bitmap_size] ), (int*) &N, sizeof(int));
-		memcpy((char *) (&datapagebuf[bitmap_size] + sizeof(int) + recnum*(pt->header.rec_size) ) , record, (pt->header.rec_size));
+		memcpy((char*) (&datapagebuf[bitmap_size]), (int*) &N, sizeof(int));
+		memcpy((char*) (&datapagebuf[bitmap_size] + sizeof(int) + recnum*(pt->header.rec_size) ) , record, (pt->header.rec_size));
 
+		if(N == pt->header.rec_page){
+			pt->header.pageDirectory[pagenum-2] = 1;
+			pt->header.num_free_pages --;
+			/*printPageDirectory(pt);*/
+			printf("num free pages : %d\n", pt->header.num_free_pages);
+		}
 
 	}
 

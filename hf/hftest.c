@@ -400,12 +400,11 @@ void testPerso(){
   /* Inserting record */
     /* clearing up the record */
 
-  for(i = 0; i<3; i++){
+  for(i = 0; i<=90; i++){
     memset(record1,' ',50);
     sprintf(record1, "record %d", i);
     res = HF_InsertRec(fd1, record1);
-    printf("rec id : %d, %d\n", res.recnum, res.pagenum);
-
+    printf("'%s' : (%d, %d)\n",record1, res.recnum, res.pagenum);
   }
 }
 
