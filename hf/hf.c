@@ -133,10 +133,9 @@ int HF_CreateFile(char *filename, int RecSize){
 	/*printf("Create file\n");*/
 
 	fd = PF_OpenFile(filename);
-	if(fd != PFE_OK){
+	if(fd < 0){
 		PF_ErrorHandler(error);
 	}
-	printf("Open file \n");
 
 
 	/* fill the array of the hf file table*/ 
@@ -165,7 +164,7 @@ int HF_CreateFile(char *filename, int RecSize){
 	/* arbitratry choice of representing the info into the buffer*/ /* §§§§§We should use memcpy, is nt it */
 	/*sprintf(headerbuf, "%d %d %d %d", pt->header.rec_size, pt->header.rec_page, pt->header.num_pages, pt->header.num_free_pages); */
 	memcpy((char*) headerbuf,(int*) &pt->header.rec_size, sizeof(int));
-        memcpy((char*) (headerbuf+4),(int*) &pt->header.rec_page, sizeof(int));
+	memcpy((char*) (headerbuf+4),(int*) &pt->header.rec_page, sizeof(int));
 	memcpy((char*) (headerbuf+8),(int*) &pt->header.num_pages, sizeof(int));	
 	memcpy((char*) (headerbuf+12),(int*) &pt->header.num_free_pages , sizeof(int));
 	
@@ -222,23 +221,23 @@ int HF_OpenFile(char *filename){
 
 
 	/* Fill the array of the hf filetable */
-	pt = HFftab + sizeof(HFftab_ele)*HFftab_length;
-	HFftab_length ++;
-
+	/*pt = ( HFftab + sizeof(HFftab_ele)*HFftab_length) ;*/
+	pt = HFftab + HFftab_length;
+	
 	pt->fd = fd;
 	pt->valid = TRUE;
-	/* memcpy(pt->fname, filename, sizeof(filename)); */
-	sprintf(pt->fname, "%s", filename);
 
+	memcpy(pt->fname, filename, sizeof(filename));
 	memcpy((int*) &pt->header.rec_size, (char*) (pagebuf), sizeof(int));
 	memcpy((int*) &pt->header.rec_page, (char*) (pagebuf + 4), sizeof(int));
 	memcpy((int*) &pt->header.num_pages, (char*) (pagebuf + 8), sizeof(int));
 	memcpy((int*) &pt->header.num_free_pages, (char*) (pagebuf + 12), sizeof(int));
 
-	printf("file %s, with fd %i is opened\n", pt->fname, fileDesc);
+	memcpy((char*) &pt->header.pageDirectory, (char*) (pagebuf + 16), PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char)); 
 	printf("Entry added to HF Table : %d, %d, %d, %d\n", pt->header.rec_size, pt->header.rec_page, pt->header.num_pages, pt->header.num_free_pages);
-	/* need also to fill the header bitmap (to know where are the free pages) */
+	/* need also to fill the header directory (to know where are the free pages) */
 
+	HFftab_length ++;
 	return fileDesc;
 }
 
@@ -383,9 +382,9 @@ bool_t HF_ValidRecId(int fileDesc, RECID recid){
 void HF_PrintTable(void){
 	size_t i;
 	printf("\n\n******** HF Table ********\n");
-	printf("******* Length : %d *******\n", HFftab_length);
+	printf("******* Length : %d *******\n",(int) HFftab_length);
 	for(i=0; i<HFftab_length; i++){
-		printf("* %d : %s : %d valid  *\n", i, HFftab[i].fname, HFftab[i].valid);
+		printf("* %d : %s : pageDirectory %s  *\n", (int)i, HFftab[i].fname, HFftab[i].header.pageDirectory);
 	}
 	printf("**************************\n\n");
 }

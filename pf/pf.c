@@ -18,9 +18,9 @@ size_t PFftab_length;
 void PF_PrintTable(void){
 	size_t i;
 	printf("\n\n******** PF Table ********\n");
-	printf("******* Length : %d *******\n", PFftab_length);
+	printf("******* Length : %d *******\n",(int) PFftab_length);
 	for(i=0; i<PFftab_length; i++){
-		printf("* %d : %s : %d pages  *\n", i, PFftab[i].fname, PFftab[i].hdr.numpages);
+		printf("* %d : %s : %d pages  *\n", (int) i, PFftab[i].fname, PFftab[i].hdr.numpages);
 	}
 	printf("**************************\n\n");
 }
@@ -79,7 +79,7 @@ int PF_CreateFile(char *filename){
 	if (PFftab_length >= PF_FTAB_SIZE) {
 		return PFE_FTABFULL;
 	}
-	pt=(PFftab+sizeof(PFftab_ele)*PFftab_length);
+	pt=(PFftab+PFftab_length);
 
 	pt->valid=TRUE;
 	pt->inode=inode;
@@ -140,8 +140,8 @@ int PF_DestroyFile (char *filename) {
 
 	/* search for file in PFftab by filename*/
 	for (i = 0; i < PFftab_length; i++) {
-		if (strcmp((PFftab+sizeof(PFftab_ele)*i)->fname, filename) == 0) {
-			ftab_ele = (PFftab+sizeof(PFftab_ele)*i); /* found the page */
+		if (strcmp((PFftab+i)->fname, filename) == 0) {
+			ftab_ele = (PFftab+i); /* found the page */
 			break;
 		}
 	}
@@ -196,7 +196,7 @@ int PF_OpenFile (char *filename) {
 
 
     /* fill the next array of the PF file table*/
-    pt = ( PFftab + sizeof(PFftab_ele) * PFftab_length );
+    pt = ( PFftab + PFftab_length );
 
     /* get inode */
     if(fstat(unixfd, &file_stat)) return PFE_UNIX;
@@ -237,7 +237,7 @@ int PF_CloseFile (int fd) {
 	int error;
 
 	if (fd < 0 || fd >= PFftab_length) return PFE_FD;
-	pt = (PFftab + sizeof(PFftab_ele) * fd);
+	pt = PFftab + fd;
 
 	if(pt->hdrchanged=TRUE){
 	    /* to write the header : write with get buf, touchbuf and unpin */ 
@@ -303,9 +303,9 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	}
 	if (fd < 0 || fd >= PFftab_length) return PFE_FD;
 	
-	new_pagenum = (PFftab + sizeof(PFftab_ele) * fd)->hdr.numpages;	/*or  pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
+	new_pagenum = (PFftab + fd)->hdr.numpages;	/*or  pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd);*/
 	bq.fd = fd;
-	bq.unixfd = (PFftab + sizeof(PFftab_ele) * fd)->unixfd;
+	bq.unixfd = (PFftab + fd)->unixfd;
 	bq.dirty = TRUE;
 	bq.pagenum = new_pagenum;
 
@@ -320,8 +320,8 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	/* update page info and header*/
 	*pagenum = new_pagenum;
 	*(pagebuf)=pfpage->pagebuf;
-	(PFftab + sizeof(PFftab_ele) * fd)->hdrchanged = TRUE;
-	(PFftab + sizeof(PFftab_ele) * fd)->hdr.numpages++ ;
+	(PFftab + fd)->hdrchanged = TRUE;
+	(PFftab + fd)->hdr.numpages++ ;
 	
 
 	return PFE_OK;
@@ -344,7 +344,7 @@ int PF_GetNextPage (int fd, int *pageNum, char **pagebuf){
 	
 	/* fill bq using PFftab_ele fields */
 
-	pt=(PFftab+sizeof(PFftab_ele)*fd);
+	pt=(PFftab+fd);
 	bq.fd=fd;
 	bq.unixfd=pt->unixfd;
 	bq.dirty=FALSE;
@@ -395,7 +395,7 @@ int PF_GetThisPage (int fd, int pageNum, char **pagebuf){
 	
 	/* fill bq using PFftab_ele fields */
 	
-	pt=(PFftab+sizeof(PFftab_ele)*fd);
+	pt=(PFftab+fd);
 	bq.fd=fd;
 	bq.unixfd=pt->unixfd;
 	bq.dirty=FALSE;
@@ -428,7 +428,7 @@ int PF_DirtyPage(int fd, int pageNum) {
 
 	if (fd < 0 || fd >= PFftab_length) return PFE_FD;
 	
-	ftab_ele = (PFftab + sizeof(PFftab_ele) * fd);
+	ftab_ele = (PFftab + fd);
         /*printf( "page num and number of page of the file %d,  %d \n", pageNum, ftab_ele->hdr.numpages);*/
 	if (pageNum < 0 || pageNum >= ftab_ele->hdr.numpages){
 		return PFE_INVALIDPAGE;
@@ -466,7 +466,7 @@ int PF_UnpinPage(int fd, int pageNum, int dirty) {
 		return PFE_FD;
 	}
 	
-	pfftab_ele = (PFftab + sizeof(PFftab_ele) * fd); 
+	pfftab_ele = (PFftab + fd); 
 	
 	if (pageNum < 0 || pageNum >= pfftab_ele->hdr.numpages) {
 		return PFE_INVALIDPAGE;

@@ -440,7 +440,7 @@ void ht_print(Hashtable* ht) {
 	/*printf("-------------------- begin content of hashtable --------------------\n");*/
 	for (i = 0; i < ht->size; i++) {
 		BFhash_entry* e = ht->entries[i];
-		printf("Bucket [%d]: ", i);
+		printf("Bucket [%d]: ", (int) i);
 		while (e != NULL) {
 			printf("(fd %d, pagenum %d) ",e->fd, e->pagenum);
 			e = e->nextentry;
