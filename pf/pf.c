@@ -208,7 +208,7 @@ int PF_OpenFile (char *filename) {
     pt->unixfd = unixfd;
     /* get the number of pages written in the pagebuf*/
     /* sprintf((char*)fpageHeader->pagebuf, "%4d", pt->hdr.numpages);*/
-    memcpy((int*) &(pt->hdr.numpages), (char*)fpageHeader->pagebuf, 	(int));
+    memcpy((int*) &(pt->hdr.numpages), (char*)fpageHeader->pagebuf, sizeof(int) );
     pt->hdrchanged = FALSE;
 
     PFftab_length++; /* for next entry */
@@ -309,7 +309,6 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 	bq.dirty = TRUE;
 	bq.pagenum = new_pagenum;
 
-	printf("page num given to allocbuf %d /n", bq.pagenum);
 	if ((error = BF_AllocBuf(bq, &pfpage)) != BFE_OK) {
 		BF_ErrorHandler(error);
 	}
