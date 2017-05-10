@@ -38,7 +38,33 @@ Consequently each file has always at least one page (pagenumber 0).
 
 
 ## Heap File LAyer
-TODO
+
+### File organization
+Each file is now composed of the following pages :
+- page 0 : Page File header, store the total number of pages in the file
+- page 1 : Heap File header, store the record size, number of record per page, number of pages in the file (min 2), number of free pages in the file, and a page directory (cf. **Page Directory**)
+- page 2 to n : data pages, with a bitmap, the number of occuped slots, the data
+
+### Page Directory
+To insert an entry without accessing all the pages sequentially, we create a page directory. It must keep track of data pages that still have some free slots. In order to fulfill its mission, we create an array that tell if a page is full or not, avoiding to retrieve pages that are full.
+
+There are `PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char)` pages that can be stored on the header page to retrieve data.
+To avoid a size restriction, once this array is full, we add another header page instead of a data page at index `PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char) + 2`.
+
+### Datapages
+We use an unpacked bitmap to store the data on every page, so the first bytes of the datapages are reserved for the bitmap, then the number of full slots.
+
+**example:** 
+
+bitmap:	1011 0100	0000 0000	
+
+Occuped slots :  4 
+
+Data : 
+
+| record | empty | record | record | empty | record | empty | empty |empty | empty | empty| empty | empty | empty | empty | empty |
+
+
 
 ## Access Method Layer
 TODO
