@@ -547,7 +547,7 @@ RECID HF_GetNextRec(int fileDesc, RECID recId, char *record) {
 
 	hfftab_ele = HFftab + fileDesc;
 
-	error = PF_GetThisPage(HFftab_ele->fd, recId.pagenum, &pagebuf);
+	error = PF_GetThisPage(hfftab_ele->fd, recId.pagenum, &pagebuf);
 	if (error != PFE_OK) PF_ErrorHandler(error);
 
 	bytes_in_bitmap = HF_GetBytesInBitmap(hfftab_ele->header.rec_page);
@@ -555,13 +555,13 @@ RECID HF_GetNextRec(int fileDesc, RECID recId, char *record) {
 	/* read the amount of slots from the page */
 	memcpy((size_t*) &amount_of_slots, (int*) (*pagebuf) + bytes_in_bitmap, sizeof(int));
 
-	if (recId.recNum > amount_of_slots) HF_ErrorHandler(HFE_INVALIDRECORD);
-	else if (recId.recNum == amount_of_slots) {
+	if (recId.recnum > amount_of_slots) HF_ErrorHandler(HFE_INVALIDRECORD);
+	else if (recId.recnum == amount_of_slots) {
 		recId.recnum = 0;
 		recId.pagenum++;
 	}
-	
-	HF_GetThisRec(filedesc, recId, record);
+
+	HF_GetThisRec(fileDesc, recId, record);
 	return recId;
 }
 
@@ -591,13 +591,13 @@ int	HF_GetThisRec(int fileDesc, RECID recId, char *record){
 	if (record == NULL) {
 		HF_ErrorHandler(HFE_WRONGPARAMETER);
 	}
-	if (HF_ValidRecId(filedesc, recId) != TRUE) {
+	if (HF_ValidRecId(fileDesc, recId) != TRUE) {
 		HF_ErrorHandler(HFE_INVALIDRECORD);
 	}
 
 	hfftab_ele = HFftab + fileDesc;
 
-	error = PF_GetThisPage(HFftab_ele->fd, recId.pagenum, &pagebuf);
+	error = PF_GetThisPage(hfftab_ele->fd, recId.pagenum, &pagebuf);
 	if (error != PFE_OK) PF_ErrorHandler(error);
 
 	/* XXX: maybe not necessary: /*
@@ -645,11 +645,11 @@ bool_t HF_ValidRecId(int fileDesc, RECID recid){
 /*
  * Calculates the amount of bytes in the bitmap, given the amount of records per page. 
  */
-size_t HF_GetBytesInBitmap(int records_per_page) {
-	size_t r;
+int HF_GetBytesInBitmap(int records_per_page) {
+	int r;
 	r = records_per_page / 8;
 	if (records_per_page % 8 != 0) r++;
-	return r;
+	return (size_t)r;
 }
 
 void HF_PrintTable(void){
