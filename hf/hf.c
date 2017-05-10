@@ -188,8 +188,14 @@ int HF_CreateFile(char *filename, int RecSize){
 	return HFE_OK;
 }
 
-int HF_DestroyFile(char *filename){
-	return 0;
+
+/* This function destroys the file whose name is fileName by calling PF_DestroyFile(). 
+ * It is included here only for completeness of the HF layer interface. This function 
+ * returns HFE_OK if the file is successfully destroyed, and HFE_PF otherwise. 
+ * Dev: Patric
+ */
+int HF_DestroyFile(char *filename) {
+	return PF_DestroyFile(filename);
 }
 
 /*
@@ -256,20 +262,49 @@ int	HF_DeleteRec(int fileDesc, RECID recId){
 	return 0;
 }
 
-RECID HF_GetFirstRec(int fileDesc, char *record){
+/*
+ *   int     HFfd;              HF file descriptor of an open file
+ *   char    *record;           pointer to the record buffer
+ *
+ * This function retrieves a copy of the first record in the file associated with HFfd. 
+ * If it succeeds, the record id of the first record in the file is returned, and a copy 
+ * of the record itself is placed in the location pointed by record. If the file is empty,
+ * it returns HFE_EOF, otherwise it returns an HF error code.
+ * Dev: Patric
+ */
+RECID HF_GetFirstRec(int fileDesc, char *record) {
 	RECID res;
 	res.recnum = 0;
 	res.pagenum = 0;
 	return res;
 }
 
-RECID HF_GetNextRec(int fileDesc, RECID recId, char *record){
+/*
+ *   int     HFfd;              HF file descriptor of an open file
+ *   RECID   recId;             record id whose next one will be retrieved
+ *   char    *record;           pointer to the record buffer
+ *
+ * This function retrieves a copy of the record following the one with id recId in the file associated with HFfd. If it succeeds, the record id of this record is returned, and a copy of the record itself is placed in the location pointed to by record. If there are no more records in the file, it returns HFE_EOF. If the incoming record id is invalid, it returns HFE_INVALIDRECORD, otherwise it returns another HF error code.
+ * Dev: Patric
+ */
+RECID HF_GetNextRec(int fileDesc, RECID recId, char *record) {
 	RECID res;
 	res.recnum = 0;
 	res.pagenum = 0;
 	return res;
 }
 
+/*
+ *   int     HFfd;              HF file descriptor of an open file
+ *   RECID   recId;             id of the record that will be retrieved
+ *   char    *record;           pointer to the record buffer
+ *
+ * This function retrieves a copy of the record with recId from the file associated 
+ * with HFfd. The data is placed in the buffer pointed to by record. It returns HFE_OK 
+ * if it succeeds, HFE_INVALIDRECORD if the argument recId is invalid, HFE_EOF if the 
+ * record with recId does not exist, or another HF error code otherwise.
+ * Dev: Patric
+ */
 int	HF_GetThisRec(int fileDesc, RECID recId, char *record){
 	return 0;
 }
