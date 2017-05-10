@@ -17,3 +17,6 @@ typedef struct HFftab_ele{
 	HFHeader header;	/* heap file header */
 	bool_t dirty;		/* TRUE if HF header has changed */
 } HFftab_ele;
+
+
+#define HFE_WRONGPARAMETER           -20
