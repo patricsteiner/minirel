@@ -245,7 +245,11 @@ int HF_CreateFile(char *filename, int RecSize){
  * Dev: Patric
  */
 int HF_DestroyFile(char *filename) {
-	return PF_DestroyFile(filename);
+	int error;
+	if ((error = PF_DestroyFile(filename) != PFE_OK)) {
+		PF_ErrorHandler(error);
+	}
+	return HFE_OK;
 }
 
 /*
@@ -513,10 +517,10 @@ int	HF_DeleteRec(int fileDesc, RECID recId){
  * Dev: Patric
  */
 RECID HF_GetFirstRec(int fileDesc, char *record) {
-	RECID res;
-	res.recnum = 0;
-	res.pagenum = 0;
-	return res;
+	RECID r;
+	r.pagenum = 2;
+	r.recnum = 0;
+	return HF_GetThisRec(fileDesc, r, record)
 }
 
 /*
@@ -528,16 +532,13 @@ RECID HF_GetFirstRec(int fileDesc, char *record) {
  * Dev: Patric
  */
 RECID HF_GetNextRec(int fileDesc, RECID recId, char *record) {
-	RECID res;
-	res.recnum = 0;
-	res.pagenum = 0;
-	return res;
+	// first increment recId, then use getThisRec
 }
 
 /*
  *   int     HFfd;              HF file descriptor of an open file
  *   RECID   recId;             id of the record that will be retrieved
- *   char    *record;           pointer to the record buffer
+ *   char    *record;           pointer to the record buffer (copy)
  *
  * This function retrieves a copy of the record with recId from the file associated 
  * with HFfd. The data is placed in the buffer pointed to by record. It returns HFE_OK 
@@ -546,7 +547,35 @@ RECID HF_GetNextRec(int fileDesc, RECID recId, char *record) {
  * Dev: Patric
  */
 int	HF_GetThisRec(int fileDesc, RECID recId, char *record){
-	return 0;
+	/* Procedure:
+		- Get the PFpage
+		- Calculate what position to read from page
+		- Read from page and copy it in record
+	*/
+
+	int error;
+	/*RECID r;*/
+	HFftab_ele* hfftab_ele;
+	size_t bytes_in_bitmap;
+	char* pagebuf;
+	
+	if (record == NULL) {
+		HF_ErrorHandler(HFE_WRONGPARAMETER);
+	}
+	if (HF_ValidRecId(filedesc, recId) != TRUE) {
+		HF_ErrorHandler(HFE_INVALIDRECORD);
+	}
+
+	error = PF_GetThisPage(HFftab_ele->fd, recId.pagenum, &pagebuf);
+	if (error != PFE_OK) PF_ErrorHandler(error);
+
+	hfftab_ele = HFftab + fileDesc;
+	bytes_in_bitmap = hfftab_ele->header.rec_page / 8;
+	if (hfftab_ele->header.rec_page % 8 != 0) bytes_in_bitmap++;
+
+	memcpy((char*) record, (char*) ((*pagebuf) + bytes_in_bitmap + sizeof(int) + hfftab_ele->header.rec_size * recId.recnum), hfftab_ele->header.rec_size);
+
+	return HFE_OK;
 }
 
 int HF_OpenFileScan(int fileDesc, char attrType, int attrLength, int attrOffset, int op, char *value){
@@ -586,3 +615,11 @@ void HF_PrintTable(void){
 	printf("**************************\n\n");
 }
 
+void HF_ErrorHandler(int error){
+	switch(error) {
+		case HFE_INVALIDRECORD: printf("\n HF: Invalid record/fileDesc combination \n"); break;
+		default: printf( " \n  HF: unused error code : %d \n\n ", error);
+	}
+	exit(-1);
+}
+		
