@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include "minirel.h"
+#include "pf.h"
 #include "hf.h"
 
 #define RECSIZE 80
