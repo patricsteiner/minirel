@@ -367,8 +367,7 @@ float_val),GE_OP,(char *)&value)) <0)
 
 }
 
-/*
- * Create 3 files, 
+/* 
  */
 void testPerso(){
   int i;
@@ -398,14 +397,16 @@ void testPerso(){
 
 
   /* Inserting record */
-    /* clearing up the record */
+  /* clearing up the record */
 
-  for(i = 0; i<=150; i++){
+  for(i = 0; i<180; i++){
     memset(record1,' ',50);
     sprintf(record1, "record %d", i);
     res = HF_InsertRec(fd1, record1);
-    printf("'%s' : (%d, %d)\n",record1, res.recnum, res.pagenum);
-  }
+    printf("Inserted '%s' : (%d, %d)\n",record1, res.recnum, res.pagenum);
+      }
+  
+
   
   res.pagenum = 2;
   for(i = 0; i<= 80; i++){
@@ -424,7 +425,7 @@ void testPerso(){
     printf("'%s' : (%d, %d)\n",record1, res.recnum, res.pagenum);
   }
 
-
+  
 }
 
 main()

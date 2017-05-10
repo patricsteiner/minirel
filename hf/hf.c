@@ -493,6 +493,7 @@ int	HF_DeleteRec(int fileDesc, RECID recId){
 	memcpy((char*) (&datapagebuf[bitmap_size]), (int*) &N, sizeof(int));
 
 	HF_PrintDataPage(datapagebuf, pt);
+
 	return HFE_OK;
 }
 
@@ -534,11 +535,45 @@ void HF_PrintError(char *errString){
 }
 
 /*
- *check if the id is valid, numpage<(number of pages in the file) and recnum<(max number of records in a page) and bit for this recnum -1 is to 1 
- *
+ * check if the recsid is valid, 
+ * numpage<(number of pages in the file) and recnum<(max number of records in a page) 
+ * Invalid if :
+ 		wrong filedesc
+ 		pagenum is not in the range of the datapages
+ 		recnum not it the range of the recnumber
+ 		associated bit in bitmap is equal to 0
+ 
+ * dev : antoine
  */
 bool_t HF_ValidRecId(int fileDesc, RECID recid){
-	return TRUE;
+	HFftab_ele* pt;
+	char* datapagebuf;
+	int bitmap_size, error, bit;
+	char byte;
+
+	if(fileDesc >= HF_FTAB_SIZE) return FALSE;
+	pt = HFftab + fileDesc;
+
+	if(pt->valid == FALSE) return FALSE;
+
+	if(recid.pagenum < 2 | recid.pagenum > pt->header.num_pages){
+		printf("Invalid pagenum number\n");
+		return FALSE;
+	}
+	if(recid.recnum < 0 | recid.recnum > pt->header.rec_page){
+		printf("Invalid record number\n");
+		return FALSE;
+	}
+	bitmap_size = (pt->header.rec_page%8)==0 ?(pt->header.rec_page / 8): (pt->header.rec_page/8)+1;
+
+	error = PF_GetThisPage(pt->fd, recid.pagenum, &datapagebuf);
+	if(error != PFE_OK) return FALSE;
+
+	byte = datapagebuf[recid.recnum/8];
+	bit = (byte & (int) pow(2, recid.recnum%8)) >> recid.recnum%8;
+	if(bit) return TRUE;
+
+	return FALSE;
 }
 
 void HF_PrintTable(void){
