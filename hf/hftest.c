@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include "minirel.h"
+#include "pf.h"
 #include "hf.h"
 
 #define RECSIZE 80
@@ -367,13 +368,65 @@ float_val),GE_OP,(char *)&value)) <0)
 
 }
 
-void testAntoine(){
+/* 
+ */
+void testPerso(){
+  int i;
+  int fd1, recsize1;
+  int fd2, recsize2;
+  RECID res;
+  recsize1 = 50;
+  recsize2 = 60;
+
+  char record1[50];
+
    /* making sure FILE1 doesn't exist */
   unlink(FILE1);
+  unlink(FILE2);
 
-  /* Creating and opening the HF file */
-  printf("\nHF_CreateFile : %d\n", HF_CreateFile(FILE1,RECSIZE) );
+  /* Creating the HF file */
+  printf("\nHF_CreateFile : %d\n", HF_CreateFile(FILE1,recsize1));
+  printf("HF_CreateFile : %d\n", HF_CreateFile(FILE2,recsize2));
 
+  /* Opening the files */ 
+  HF_PrintTable();
+  printf("\nHF_OpenFile : %d\n", fd1 = HF_OpenFile(FILE1));
+  HF_PrintTable();
+  printf("HF_OpenFile : %d\n", fd2 = HF_OpenFile(FILE2)); 
+  /* THE SECOND FILE IS NOT CORRECTLY ADDED TO THE HF Table !!! */
+  HF_PrintTable();
+
+
+  /* Inserting record */
+  /* clearing up the record */
+
+  for(i = 0; i<180; i++){
+    memset(record1,' ',50);
+    sprintf(record1, "record %d", i);
+    res = HF_InsertRec(fd1, record1);
+    printf("Inserted '%s' : (%d, %d)\n",record1, res.recnum, res.pagenum);
+      }
+  
+
+  
+  res.pagenum = 2;
+  for(i = 0; i<= 80; i++){
+    if(i%2 == 0){
+      res.recnum = i;
+      printf("\n DELETING RECORDS %d\n", res.recnum);
+      HF_DeleteRec(fd1, res);
+    }
+  }
+
+
+  for(i = 150; i <= 150 + 40; i++){
+    memset(record1,' ',50);
+    sprintf(record1, "record %d", i);
+    res = HF_InsertRec(fd1, record1);
+    printf("'%s' : (%d, %d)\n",record1, res.recnum, res.pagenum);
+  }
+
+  
 }
 
 main()
@@ -392,8 +445,8 @@ main()
   hftest3();
   printf("*** end of hftest3 *** \n");
   */
-  printf("*** begin of testAntoine ***\n");
-  testAntoine();
-  printf("*** end of testAntoine ***\n");
+  printf("*** begin of test perso ***\n");
+  testPerso();
+  printf("*** end of test perso ***\n");
 }
 

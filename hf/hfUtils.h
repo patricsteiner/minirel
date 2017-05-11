@@ -3,11 +3,13 @@
 /* This type should be in hf.h*/
 
 typedef struct HFHeader{
-    int rec_size;                 /* Record size */
-    int rec_page;                 /* Number of records per page */
-    int num_pages;                   /* Number of pages in file */
-    int num_free_pages;             /* Number of free pagesin the file */ 
-    char directory[PF_PAGE_SIZE-4*sizeof(int)-sizeof(char)]; /* directory to store number of free slots, ( udpated size if num_pages-2, because two pages are reserved for header) */
+
+    int rec_size;			/* Record size */
+    int rec_page;			/* Number of records per page */
+    int num_pages;			/* Number of pages in file */
+    int num_free_pages;		/* Number of free pagesin the file */ 
+    char pageDirectory[PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char)]; /* a table that is 1 if page is full, 0 otherwise */
+
 } HFHeader;
 
 typedef struct HFftab_ele{

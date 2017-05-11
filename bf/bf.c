@@ -311,7 +311,6 @@ int BF_FlushBuf(int fd){
 	if (lru->tail == NULL) return BFE_OK; /*empty list case*/
 	pt = lru->tail;
 	do {
-            printf("passage \n");
 	    prev = pt->prevpage;
 	    if ( pt->fd == fd){
 			/*
@@ -321,12 +320,6 @@ int BF_FlushBuf(int fd){
  				return  BFE_PINNEDPAGE;
 			}
 			else{
-				printf( "bool %d \n" , lru->head->prevpage==NULL);
-				/* to remove from the lru list,to change pointers is enough */ 
-				printf( "bool %d \n" , pt==NULL);
-				printf( "bool %d \n" , lru->head==NULL);
-					printf( "page num %d \n" , pt->pagenum);
-				
 				if (pt != lru->head){
 					
 					if(pt != lru->tail) {
