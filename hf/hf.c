@@ -289,6 +289,12 @@ int HF_OpenFile(char *filename){
 	/* need also to fill the header directory (to know where are the free pages) */
 
 	HFftab_length ++;
+
+	error = PF_UnpinPage(pt->fd, *pagenum, 1);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
+	
 	return fileDesc;
 }
 
