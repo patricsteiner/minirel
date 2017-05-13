@@ -425,28 +425,12 @@ RECID HF_InsertRec(int fileDesc, char *record){
 
 	}
 
-	HF_PrintDataPage(datapagebuf, pt);
+	/* HF_PrintDataPage(datapagebuf, pt); */
 
-	/* Algorithm : 
-	 * Chech file desc
-	 * Get the HFftab_elem associated
-	 ******** FIND A PAGE *********
-	 * If num_free_pages == 0
-		allocate a page, write the bitmap (only zeroes), set recnum = 0 and pagenum (given by PFallocpage)
-		update the HFtab_elem info 
-	 * else, find the first freepage by looping through the char array (1 : full, 0 : free, -1 : not created)
-	 	for the first number found, break the loop and get pagenum.
-	 	if no more freespace in the char array, reach next header page (numPageHeader + len_bitmap + 1) (repeat under freespace is found) 
-	 
-	 ******** FIND A FREE RECNUM ***********
-	 * Once we found a page, get the bitmap, and the remaining space
-	 * look for a free recnum (1 : full, 0 : free) using a readbytes mask function
-	 * write the record into the appropriate recnum (check the size of the record)
-	 * write the chage into the bitmap
-	 * update the remainig slots (if full, update the correct char array and hftab_elem_info)
-	 * 
-	 * return RECID res with the appropriate recnum and pagenum 
-	 */
+	error = PF_UnpinPage(pt->fd, pagenum, 1);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
 	res.recnum = recnum;
 	res.pagenum = pagenum;
 	return res;
@@ -492,7 +476,11 @@ int	HF_DeleteRec(int fileDesc, RECID recId){
 	N--;
 	memcpy((char*) (&datapagebuf[bitmap_size]), (int*) &N, sizeof(int));
 
-	HF_PrintDataPage(datapagebuf, pt);
+	/* HF_PrintDataPage(datapagebuf, pt); */
+	error = PF_UnpinPage(pt->fd, recId.pagenum, 1);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
 
 	return HFE_OK;
 }
