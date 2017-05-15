@@ -17,10 +17,10 @@ size_t HFftab_length;
 
 void printByte(char n){
 	int j;
-	for(j = 0; j < 7; j++){
+	for(j = 0; j < 8; j++){
 		printf("%d", (n & (int) pow(2,j)) >> j);
 	}
-	printf("\t");
+	printf(" ");
 }
 
 
@@ -47,7 +47,7 @@ void HF_PrintDataPage(char* buf, HFftab_ele* pt){
 
 	printf("\nBITMAP\t");
 
-	memcpy((int *) &N, (char*) ( &buf[bitmapsize]), sizeof(int));
+	memcpy((int *) &N, (char*) ( buf + bitmapsize), sizeof(int));
 	printf("Slots: %d / %d \n", N, pt->header.rec_page);
 	
 	for(i=0; i<bitmapsize; i++){
@@ -56,8 +56,8 @@ void HF_PrintDataPage(char* buf, HFftab_ele* pt){
 
 	printf("\nRECORDS\n");
 	for(i = 0; i < pt->header.rec_page; i++){
-		memcpy((int *) &N, (char*) ( &buf[bitmapsize]), sizeof(int));
-		memcpy(record, (char*) (&buf[bitmapsize] + sizeof(int) + i * pt->header.rec_size), pt->header.rec_size);
+		memcpy((int *) &N, (char*) ( buf + bitmapsize ), sizeof(int));
+		memcpy(record, (char*) (buf + bitmapsize + sizeof(int) + i * pt->header.rec_size), pt->header.rec_size);
 		if(record[0] != 0){
 			printf("slot %d\t: %s\n",i, record);
 		}
@@ -301,6 +301,7 @@ int HF_OpenFile(char *filename){
 	HFftab_length ++;
 
 	error = PF_UnpinPage(pt->fd, 1, 1);
+
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
 	}
@@ -308,9 +309,77 @@ int HF_OpenFile(char *filename){
 	return fileDesc;
 }
 
-int	HF_CloseFile(int fileDesc){
-	return 0;
+/*
+ *This function closes the file with the file descriptor HFfd by calling PF_CloseFile() with its PF file descriptor. If successful,
+ *deletes   the entry of this file from the table of open HF files. If there is an active scan, however, this function fails and no further
+ *action is done.
+ *If the hf header has been modified, then write it on page number 1.
+ *It returns HFE_OK if the file has been successfully closed, HFE_SCANOPEN if there is an active scan, an HF error code
+ *otherwise.
+ *
+ *dev: Paul
+ */
+
+int HF_CloseFile(int hffd){
+	HFftab_ele* pt;
+	int error;
+	char* pagebuf;
+	int i;
+	i=0;
+	
+	
+	if (hffd < 0 || hffd >= HFftab_length){
+		printf("table length : %d\n", HFftab_length);
+		return HFE_FD;
+	} 
+	pt=HFftab + hffd ;
+	/*check is file is not already close */
+	if (pt->valid!=TRUE) return HFE_FILENOTOPEN;
+	/* check the header */
+	if (pt->dirty==TRUE){ /* header has to be written again */
+		error=PF_GetThisPage( pt->fd, 1, &pagebuf);
+		if(error!=PFE_OK)PF_ErrorHandler(error);
+
+		/* write the header  */
+		memcpy((char*) pagebuf,(int*) &pt->header.rec_size, sizeof(int));
+		memcpy((char*) (pagebuf+4),(int*) &pt->header.rec_page, sizeof(int));
+		memcpy((char*) (pagebuf+8),(int*) &pt->header.num_pages, sizeof(int));    
+		memcpy((char*) (pagebuf+12),(int*) &pt->header.num_free_pages , sizeof(int));
+		memcpy((char*) (pagebuf + 16),(char*) &pt->header.pageDirectory, PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char));
+		/* the page is dirty now ==> last arg of PF_UnpinPage ("dirty") set to one */
+		error = PF_UnpinPage(pt->fd, 1, 1);
+		if(error != PFE_OK){
+			PF_ErrorHandler(error);
+		}
+		
+	}
+	/* close the file using pf layer */
+	error=PF_CloseFile(pt->fd);
+	if(error!=PFE_OK)PF_ErrorHandler(error);
+	/* check that there is no scan in progress involving this file*/
+	/* by scanning the scan table */
+	/*
+	for (i=0;i<HFscantab_length;i++){
+			if((HFscantab+i)->HFfd==hffd) return HFE_SCANOPEN;
+	}
+	*/
+	
+	/*deletion */
+	/* a file can be deleted only if it is at then end of the table in order to have static file descriptor */
+	/* In any case the boolean valid is set to false to precise that this file is closed */
+	pt->valid==FALSE;
+	if(hffd==(HFftab_length-1)){ /* it is the last file of the table */
+		if(HFftab_length >0){
+			HFftab_length--;
+			while (((HFftab+ HFftab_length-1)->valid==FALSE)&& HFftab_length>0){
+				HFftab_length--; /* delete all the closed file, which are the end of the table */
+			}
+		}
+	}
+	
+	return HFE_OK;
 }
+
 
 /*
  * This function inserts the record pointed to by record into the open file associated with HFfd. 
@@ -375,15 +444,16 @@ RECID HF_InsertRec(int fileDesc, char *record){
 		datapagebuf[0] |= (int) pow(2,0);
 		recnum = 0;
 		N = 1;
-		memcpy(( char*) ( &datapagebuf[bitmap_size] ), (int*) &N, sizeof(int)); /* number of slots full in the page */
-		memcpy(( char*) ( &datapagebuf[bitmap_size] + sizeof(int) ), record, (pt->header.rec_size)); 
+		memcpy(( char*) ( datapagebuf + bitmap_size ), (int*) &N, sizeof(int)); /* number of slots full in the page */
+		memcpy(( char*) ( datapagebuf + bitmap_size + sizeof(int) ), record, (pt->header.rec_size)); 
 
 		pt->header.num_free_pages ++;
 		pt->header.num_pages ++;
-		pt->header.pageDirectory[pt->header.num_pages - 3] = -1;
-		printf("\nNEW DATA PAGE ALLOCATED, now %d datapages\n", pt->header.num_pages -2);
+		pt->header.pageDirectory[pt->header.num_pages - 3] = 0;
+		pt->dirty = TRUE;
+		/* printf("\nNEW DATA PAGE ALLOCATED, now %d datapages\n", pt->header.num_pages -2);
 		printPageDirectory(pt);
-		
+		*/
 		
 
 	}else{ 
@@ -391,9 +461,9 @@ RECID HF_InsertRec(int fileDesc, char *record){
 		broke = 0;
 		/* Find a page with freespace== -1 */
 		for(i=0; i < pt->header.num_pages-2 | broke ; i++){
-			if(pt->header.pageDirectory[i] == -1){
+			if(pt->header.pageDirectory[i] == 0){
 				pagenum = i + 2 ;
-				printf("\nSpace available on page %d\n", pagenum );
+				/*printf("\nSpace available on page %d\n", pagenum );*/
 				broke = 1;
 				break;
 			}
@@ -426,22 +496,23 @@ RECID HF_InsertRec(int fileDesc, char *record){
 			}
 		}
 
-		printf("Insert '%s' on page %d, slot %d\n", record, pagenum, recnum);
-		memcpy((int*)&N, (char*) (&datapagebuf[bitmap_size]), sizeof(int));
+		/*printf("Insert '%s' on page %d, slot %d\n", record, pagenum, recnum);*/
+		memcpy((int*)&N, (char*) (datapagebuf + bitmap_size), sizeof(int));
 		N++;
-		memcpy((char*) (&datapagebuf[bitmap_size]), (int*) &N, sizeof(int));
-		memcpy((char*) (&datapagebuf[bitmap_size] + sizeof(int) + recnum*(pt->header.rec_size) ) , record, (pt->header.rec_size));
+		memcpy((char*) (datapagebuf + bitmap_size), (int*) &N, sizeof(int));
+		memcpy((char*) (datapagebuf + bitmap_size + sizeof(int) + recnum*(pt->header.rec_size) ) , record, (pt->header.rec_size));
 
 		if(N == pt->header.rec_page){
 			pt->header.pageDirectory[pagenum-2] = 1;
 			pt->header.num_free_pages --;
-			/*printPageDirectory(pt);*/
-			printf("num free pages : %d\n", pt->header.num_free_pages);
+			pt->dirty = FALSE;
+			/*printPageDirectory(pt);
+			printf("num free pages : %d\n", pt->header.num_free_pages); */
 		}
 
 	}
 
-	/* HF_PrintDataPage(datapagebuf, pt); */
+	HF_PrintDataPage(datapagebuf, pt);
 
 	error = PF_UnpinPage(pt->fd, pagenum, 1);
 	if(error != PFE_OK){
@@ -462,14 +533,6 @@ int	HF_DeleteRec(int fileDesc, RECID recId){
 	HFftab_ele* pt;
 	char* datapagebuf;
 	int error, bitmap_size, N;
-	/* Algorithm : get the page
-	 * recId.recnum, recId.pagenum
-	 * update the appropriate bit (1 to 0)
-	 * update the number of occupied slots
-	 * if the page was full, 
-	 * 	update as no more full in the pageDirectory
-	 *	update the number of free pages
-	 */
 
 	if( !HF_ValidRecId(fileDesc, recId) ) return HFE_INVALIDRECORD;
 
@@ -481,18 +544,19 @@ int	HF_DeleteRec(int fileDesc, RECID recId){
 
 	/* Update the apppropriate bit */ 
 	datapagebuf[recId.recnum/8] &= ~((int) pow(2, recId.recnum % 8));
-	/*number &= ~(1 << x);
 
 	/* update page directory and # occupied slots */ 
-	memcpy((int*)&N, (char*) (&datapagebuf[bitmap_size]), sizeof(int));
+	memcpy((int*)&N, (char*) (datapagebuf + bitmap_size), sizeof(int));
 	if(N == pt->header.rec_page){
 		pt->header.num_free_pages ++;
-		pt->header.pageDirectory[recId.pagenum-2] = -1;
+		pt->header.pageDirectory[recId.pagenum-2] = 0;
+		pt->dirty = FALSE;
 	}
 	N--;
-	memcpy((char*) (&datapagebuf[bitmap_size]), (int*) &N, sizeof(int));
+	memcpy((char*) (datapagebuf + bitmap_size), (int*) &N, sizeof(int));
 
-	/* HF_PrintDataPage(datapagebuf, pt); */
+	HF_PrintDataPage(datapagebuf, pt);
+
 	error = PF_UnpinPage(pt->fd, recId.pagenum, 1);
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
@@ -676,8 +740,13 @@ bool_t HF_ValidRecId(int fileDesc, RECID recid){
 
 	byte = datapagebuf[recid.recnum/8];
 	bit = (byte & (int) pow(2, recid.recnum%8)) >> recid.recnum%8;
-	/*printByte(byte);
-	printf("bit: %d\n", bit);*/
+
+	error = PF_UnpinPage(pt->fd, recid.pagenum, 1);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
+	
+
 	if(bit) return TRUE;
 
 	return FALSE;
@@ -698,9 +767,11 @@ void HF_PrintTable(void){
 	printf("\n\n******** HF Table ********\n");
 	printf("******* Length : %d *******\n",(int) HFftab_length);
 	for(i=0; i<HFftab_length; i++){
-		printf("* %d : %s : pageDirectory %s  *\n", (int)i, HFftab[i].fname, HFftab[i].header.pageDirectory);
+		printf("**** %d : %s : %d freepages\n", (int)i, HFftab[i].fname, HFftab[i].header.num_free_pages);
 	}
 	printf("**************************\n\n");
+
+	PF_PrintTable();
 }
 
 void HF_ErrorHandler(int error){

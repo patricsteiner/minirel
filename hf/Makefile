@@ -31,5 +31,5 @@ clean:
 .c.o:; $(CC) $(CFLAGS) -c $< -I. -I$(INCDIR) 
 
 antoine:
-	$(CC) $(CFLAGS) hftest.c hf.c ../bf/bf.c ../bf/bfUtils.c ../pf/pf.c -I ../h -lm
+	$(CC) $(CFLAGS) hftest.c hf.c ../bf/bf.c ../bf/bfUtils.c ../pf/pf.c -I ../h  -fno-stack-protector -lm 
 

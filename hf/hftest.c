@@ -368,10 +368,16 @@ float_val),GE_OP,(char *)&value)) <0)
 
 }
 
-/* 
+/*
+ * open 2 files,
+ * wite records in these 2 files
+ * delete records in these 2 files
+ * close them
+ * reopen
+ * nsert or delete
  */
 void testPerso(){
-  int i;
+  int i, error;
   int fd1, recsize1;
   int fd2, recsize2;
   RECID res;
@@ -400,53 +406,86 @@ void testPerso(){
   /* Inserting record */
   /* clearing up the record */
 
-  for(i = 0; i<180; i++){
+  for(i = 0; i<20; i++){
     memset(record1,' ',50);
     sprintf(record1, "record %d", i);
     res = HF_InsertRec(fd1, record1);
     printf("Inserted '%s' : (%d, %d)\n",record1, res.recnum, res.pagenum);
-      }
+	}
   
 
   
   res.pagenum = 2;
-  for(i = 0; i<= 80; i++){
-    if(i%2 == 0){
-      res.recnum = i;
-      printf("\n DELETING RECORDS %d\n", res.recnum);
-      HF_DeleteRec(fd1, res);
-    }
+  for(i = 10; i< 20; i++){
+    res.recnum = i;
+    printf("\n DELETING RECORDS %d\n", res.recnum);
+    HF_DeleteRec(fd1, res);
   }
 
-
+  /*
   for(i = 150; i <= 150 + 40; i++){
     memset(record1,' ',50);
     sprintf(record1, "record %d", i);
     res = HF_InsertRec(fd1, record1);
     printf("'%s' : (%d, %d)\n",record1, res.recnum, res.pagenum);
   }
-
+  */
   
+  HF_PrintTable();
+
+  if (HF_CloseFile(fd1) != HFE_OK) {
+     HF_PrintError("Problem closing file \n");
+     exit(1);
+  }
+  HF_PrintTable();
+  /* Opening the files */ 
+  printf("\nHF_OpenFile : %d\n", fd1 = HF_OpenFile(FILE1));
+  HF_PrintTable();
+
+  for(i = 0; i<1; i++){
+    memset(record1,' ',50);
+    sprintf(record1, "record %dbis", i);
+    res = HF_InsertRec(fd1, record1);
+    printf("Inserted '%s' : (%d, %d)\n",record1, res.recnum, res.pagenum);
+	}
+
+
+  if (HF_CloseFile(fd1) != HFE_OK) {
+     HF_PrintError("Problem closing file \n");
+     exit(1);
+  }
+  
+  if ((error = HF_CloseFile(fd2)) != HFE_OK) {
+  	printf("error : %d for file %d\n", error, fd2);
+		HF_PrintError("Problem closing file2  \n");
+		exit(1);
+	}
+
+	
 }
 
 main()
 {
   HF_Init();
- /*
+  /*
   printf("*** begin of hftest1 ***\n");
   hftest1();
   printf("*** end of hftest1 ***\n");
-
+  */
+  /*
   printf("*** begin of hftest2 ***\n");
   hftest2();
   printf("*** end of hftest2 ***\n");
-
+  */
+  /*
   printf("*** begin of hftest3 *** \n");
   hftest3();
   printf("*** end of hftest3 *** \n");
   */
+  
   printf("*** begin of test perso ***\n");
   testPerso();
   printf("*** end of test perso ***\n");
+  
 }
 

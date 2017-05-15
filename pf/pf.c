@@ -23,6 +23,8 @@ void PF_PrintTable(void){
 		printf("* %d : %s : %d pages  *\n", (int) i, PFftab[i].fname, PFftab[i].hdr.numpages);
 	}
 	printf("**************************\n\n");
+
+	BF_ShowBuf();
 }
 /*
  * Init the PF layer and also the BF layer by BF_Init
@@ -270,9 +272,17 @@ int PF_CloseFile (int fd) {
 		return PFE_UNIX;
          }
 
-	 pt->valid = FALSE;
-	 if(fd == (PFftab_length-1)) PFftab_length--;
-	    printf("\nThe file '%s' containing %d pages (including header page) has been closed.\n", pt->fname, pt->hdr.numpages);
+	pt->valid = FALSE;
+	if(fd == (PFftab_length-1)) {
+		if(PFftab_length > 0){
+			PFftab_length--;
+			while(((PFftab + PFftab_length - 1)->valid == FALSE) && PFftab_length > 0){
+				PFftab_length--;
+			}
+			
+		}
+	}
+	printf("\nThe file '%s' containing %d pages (including header page) has been closed.\n", pt->fname, pt->hdr.numpages);
 
 	return BFE_OK;
 }
@@ -484,7 +494,7 @@ int PF_UnpinPage(int fd, int pageNum, int dirty) {
 	if ((error = BF_UnpinBuf(bq)) != BFE_OK) {
 		BF_ErrorHandler(error);
 	}
-	
+
 	return PFE_OK;
 }
 
