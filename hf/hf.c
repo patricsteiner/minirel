@@ -532,30 +532,31 @@ RECID HF_GetFirstRec(int fileDesc, char *record) {
  */
 RECID HF_GetNextRec(int fileDesc, RECID recId, char *record) {
 	/* Procedure: 
+		- check if valid record
+		- increment recnum
 		- if recId.recnum the last record: set recnum to 0 and increment pagenum
 		- call HF_GetThisRec
 	*/
 	int error;
 	HFftab_ele* hfftab_ele;
-	size_t bytes_in_bitmap, amount_of_slots;
-	char* pagebuf;
 
 	hfftab_ele = HFftab + fileDesc;
 
-	error = PF_GetThisPage(hfftab_ele->fd, recId.pagenum, &pagebuf);
-	if (error != PFE_OK) PF_ErrorHandler(error);
+	/* not checking if valid, because input record may be deleted and in this case
+	 we still want to continue! validity is checked in GetThisRec. */
+	/*if (HF_ValidRecId(fileDesc, recId) != TRUE) {
+		HF_ErrorHandler(HFE_INVALIDRECORD);
+	}*/
 
-	bytes_in_bitmap = HF_GetBytesInBitmap(hfftab_ele->header.rec_page);
-
-	/* read the amount of slots from the page */
-	memcpy((size_t*) &amount_of_slots, (int*) (pagebuf) + bytes_in_bitmap, sizeof(int));
-
-	if (recId.recnum > amount_of_slots) HF_ErrorHandler(HFE_INVALIDRECORD);
-	else if (recId.recnum == amount_of_slots) {
+	recId.recnum++;
+	if (recId.recnum >= hfftab_ele->header.rec_page) {
 		recId.recnum = 0;
 		recId.pagenum++;
-	} else {
-		recId.recnum++;
+	}
+	if (HF_ValidRecId(fileDesc, recId) != TRUE) {
+		/* no error handler! */
+		recId.recnum = -1; /* make sure record is invalid so while loop is ended */
+		return recId;
 	}
 
 	HF_GetThisRec(fileDesc, recId, record);
@@ -592,7 +593,7 @@ int	HF_GetThisRec(int fileDesc, RECID recId, char *record){
 	printf("fd: %d\n", fileDesc);
 	printf("rid.pagenum: %d\n", recId.pagenum);
 	printf("rid.recnum: %d\n", recId.recnum);
-	HF_PrintTable();
+	/*HF_PrintTable();*/
 	if (HF_ValidRecId(fileDesc, recId) != TRUE) {
 		HF_ErrorHandler(HFE_INVALIDRECORD);
 	}
@@ -602,21 +603,15 @@ int	HF_GetThisRec(int fileDesc, RECID recId, char *record){
 	error = PF_GetThisPage(hfftab_ele->fd, recId.pagenum, &pagebuf);
 	if (error != PFE_OK) PF_ErrorHandler(error);
 
-	/* XXX: maybe not necessary: /*
-	/* check if bit in bitmap at position of recnum is 1 (otherwise record is emtpy) */
-	if (pagebuf[recId.recnum / 8] & ((int) pow(2, recId.recnum % 8)) != 1) {
-		PF_ErrorHandler(HFE_EOF);
-	}
-
 	bytes_in_bitmap = HF_GetBytesInBitmap(hfftab_ele->header.rec_page);
 
-	printf("\nDEBUG: rec_page: %d\n", hfftab_ele->header.rec_page);
+	/*printf("\nDEBUG: rec_page: %d\n", hfftab_ele->header.rec_page);
 	printf("\nDEBUG: rec_size: %d\n", hfftab_ele->header.rec_size);
 	printf("\nDEBUG: recnum: %d\n", recId.recnum);
 	printf("\nDEBUG: pagenum: %d\n", recId.pagenum);
 	printf("\nDEBUG: bib: %d\n", bytes_in_bitmap);
 	printByte(pagebuf[0]);
-	HF_PrintDataPage(pagebuf, hfftab_ele);
+	/*HF_PrintDataPage(pagebuf, hfftab_ele);*/
 
 	/* add sizeof(int) to offset because a page has bitmap first, then an int to indicate number of slots */
 	memcpy((char*) record, (char*) (pagebuf + bytes_in_bitmap + sizeof(int) + hfftab_ele->header.rec_size * recId.recnum), hfftab_ele->header.rec_size);
@@ -681,8 +676,8 @@ bool_t HF_ValidRecId(int fileDesc, RECID recid){
 
 	byte = datapagebuf[recid.recnum/8];
 	bit = (byte & (int) pow(2, recid.recnum%8)) >> recid.recnum%8;
-	/*printByte(byte);*/
-	/*printf("bit: %d\n", bit);*/
+	/*printByte(byte);
+	printf("bit: %d\n", bit);*/
 	if(bit) return TRUE;
 
 	return FALSE;
