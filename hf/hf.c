@@ -299,6 +299,12 @@ int HF_OpenFile(char *filename){
 	/* need also to fill the header directory (to know where are the free pages) */
 
 	HFftab_length ++;
+
+	error = PF_UnpinPage(pt->fd, *pagenum, 1);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
+	
 	return fileDesc;
 }
 
@@ -435,28 +441,12 @@ RECID HF_InsertRec(int fileDesc, char *record){
 
 	}
 
-	HF_PrintDataPage(datapagebuf, pt);
+	/* HF_PrintDataPage(datapagebuf, pt); */
 
-	/* Algorithm : 
-	 * Chech file desc
-	 * Get the HFftab_elem associated
-	 ******** FIND A PAGE *********
-	 * If num_free_pages == 0
-		allocate a page, write the bitmap (only zeroes), set recnum = 0 and pagenum (given by PFallocpage)
-		update the HFtab_elem info 
-	 * else, find the first freepage by looping through the char array (1 : full, 0 : free, -1 : not created)
-	 	for the first number found, break the loop and get pagenum.
-	 	if no more freespace in the char array, reach next header page (numPageHeader + len_bitmap + 1) (repeat under freespace is found) 
-	 
-	 ******** FIND A FREE RECNUM ***********
-	 * Once we found a page, get the bitmap, and the remaining space
-	 * look for a free recnum (1 : full, 0 : free) using a readbytes mask function
-	 * write the record into the appropriate recnum (check the size of the record)
-	 * write the chage into the bitmap
-	 * update the remainig slots (if full, update the correct char array and hftab_elem_info)
-	 * 
-	 * return RECID res with the appropriate recnum and pagenum 
-	 */
+	error = PF_UnpinPage(pt->fd, pagenum, 1);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
 	res.recnum = recnum;
 	res.pagenum = pagenum;
 	return res;
@@ -502,7 +492,12 @@ int	HF_DeleteRec(int fileDesc, RECID recId){
 	N--;
 	memcpy((char*) (&datapagebuf[bitmap_size]), (int*) &N, sizeof(int));
 
-	HF_PrintDataPage(datapagebuf, pt);
+	/* HF_PrintDataPage(datapagebuf, pt); */
+	error = PF_UnpinPage(pt->fd, recId.pagenum, 1);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
+
 	return HFE_OK;
 }
 
@@ -635,11 +630,45 @@ void HF_PrintError(char *errString){
 }
 
 /*
- *check if the id is valid, numpage<(number of pages in the file) and recnum<(max number of records in a page) and bit for this recnum -1 is to 1 
- *
+ * check if the recsid is valid, 
+ * numpage<(number of pages in the file) and recnum<(max number of records in a page) 
+ * Invalid if :
+ 		wrong filedesc
+ 		pagenum is not in the range of the datapages
+ 		recnum not it the range of the recnumber
+ 		associated bit in bitmap is equal to 0
+ 
+ * dev : antoine
  */
 bool_t HF_ValidRecId(int fileDesc, RECID recid){
-	return TRUE;
+	HFftab_ele* pt;
+	char* datapagebuf;
+	int bitmap_size, error, bit;
+	char byte;
+
+	if(fileDesc >= HF_FTAB_SIZE) return FALSE;
+	pt = HFftab + fileDesc;
+
+	if(pt->valid == FALSE) return FALSE;
+
+	if(recid.pagenum < 2 | recid.pagenum > pt->header.num_pages){
+		printf("Invalid pagenum number\n");
+		return FALSE;
+	}
+	if(recid.recnum < 0 | recid.recnum > pt->header.rec_page){
+		printf("Invalid record number\n");
+		return FALSE;
+	}
+	bitmap_size = (pt->header.rec_page%8)==0 ?(pt->header.rec_page / 8): (pt->header.rec_page/8)+1;
+
+	error = PF_GetThisPage(pt->fd, recid.pagenum, &datapagebuf);
+	if(error != PFE_OK) return FALSE;
+
+	byte = datapagebuf[recid.recnum/8];
+	bit = (byte & (int) pow(2, recid.recnum%8)) >> recid.recnum%8;
+	if(bit) return TRUE;
+
+	return FALSE;
 }
 
 /*
