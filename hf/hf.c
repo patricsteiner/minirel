@@ -300,7 +300,7 @@ int HF_OpenFile(char *filename){
 
 	HFftab_length ++;
 
-	error = PF_UnpinPage(pt->fd, *pagenum, 1);
+	error = PF_UnpinPage(pt->fd, 1, 1);
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
 	}
@@ -548,12 +548,14 @@ RECID HF_GetNextRec(int fileDesc, RECID recId, char *record) {
 	bytes_in_bitmap = HF_GetBytesInBitmap(hfftab_ele->header.rec_page);
 
 	/* read the amount of slots from the page */
-	memcpy((size_t*) &amount_of_slots, (int*) (*pagebuf) + bytes_in_bitmap, sizeof(int));
+	memcpy((size_t*) &amount_of_slots, (int*) (pagebuf) + bytes_in_bitmap, sizeof(int));
 
 	if (recId.recnum > amount_of_slots) HF_ErrorHandler(HFE_INVALIDRECORD);
 	else if (recId.recnum == amount_of_slots) {
 		recId.recnum = 0;
 		recId.pagenum++;
+	} else {
+		recId.recnum++;
 	}
 
 	HF_GetThisRec(fileDesc, recId, record);
@@ -586,6 +588,11 @@ int	HF_GetThisRec(int fileDesc, RECID recId, char *record){
 	if (record == NULL) {
 		HF_ErrorHandler(HFE_WRONGPARAMETER);
 	}
+
+	printf("fd: %d\n", fileDesc);
+	printf("rid.pagenum: %d\n", recId.pagenum);
+	printf("rid.recnum: %d\n", recId.recnum);
+	HF_PrintTable();
 	if (HF_ValidRecId(fileDesc, recId) != TRUE) {
 		HF_ErrorHandler(HFE_INVALIDRECORD);
 	}
@@ -601,11 +608,18 @@ int	HF_GetThisRec(int fileDesc, RECID recId, char *record){
 		PF_ErrorHandler(HFE_EOF);
 	}
 
-	
 	bytes_in_bitmap = HF_GetBytesInBitmap(hfftab_ele->header.rec_page);
 
+	printf("\nDEBUG: rec_page: %d\n", hfftab_ele->header.rec_page);
+	printf("\nDEBUG: rec_size: %d\n", hfftab_ele->header.rec_size);
+	printf("\nDEBUG: recnum: %d\n", recId.recnum);
+	printf("\nDEBUG: pagenum: %d\n", recId.pagenum);
+	printf("\nDEBUG: bib: %d\n", bytes_in_bitmap);
+	printByte(pagebuf[0]);
+	HF_PrintDataPage(pagebuf, hfftab_ele);
+
 	/* add sizeof(int) to offset because a page has bitmap first, then an int to indicate number of slots */
-	memcpy((char*) record, (char*) ((*pagebuf) + bytes_in_bitmap + sizeof(int) + hfftab_ele->header.rec_size * recId.recnum), hfftab_ele->header.rec_size);
+	memcpy((char*) record, (char*) (pagebuf + bytes_in_bitmap + sizeof(int) + hfftab_ele->header.rec_size * recId.recnum), hfftab_ele->header.rec_size);
 
 	return HFE_OK;
 }
@@ -662,10 +676,13 @@ bool_t HF_ValidRecId(int fileDesc, RECID recid){
 	bitmap_size = (pt->header.rec_page%8)==0 ?(pt->header.rec_page / 8): (pt->header.rec_page/8)+1;
 
 	error = PF_GetThisPage(pt->fd, recid.pagenum, &datapagebuf);
+
 	if(error != PFE_OK) return FALSE;
 
 	byte = datapagebuf[recid.recnum/8];
 	bit = (byte & (int) pow(2, recid.recnum%8)) >> recid.recnum%8;
+	/*printByte(byte);*/
+	/*printf("bit: %d\n", bit);*/
 	if(bit) return TRUE;
 
 	return FALSE;
