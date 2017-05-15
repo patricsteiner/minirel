@@ -160,8 +160,9 @@ void amtest2()
       /* clearing retrieved_value  */
       memset(retrieved_value, ' ', STRSIZE);
       recid = AM_FindNextEntry(sd);
-      if (!HF_ValidRecId(hf_fd,recid)) 
+      if (!HF_ValidRecId(hf_fd,recid)){
          if (AMerrno == AME_EOF) break; /*Out of records satisfying predicate */
+      }
       else
       {
          AM_PrintError("Problem finding next entry");
@@ -237,8 +238,9 @@ void amtest3()
       /* clearing retrieved_value  */
       memset(retrieved_value, ' ', STRSIZE);
       recid = AM_FindNextEntry(sd);
-      if (!HF_ValidRecId(hf_fd,recid)) 
+      if (!HF_ValidRecId(hf_fd,recid)){ 
          if (AMerrno == AME_EOF) break; /*Out of records satisfying predicate */
+      }
       else
       {
          AM_PrintError("Problem finding next entry");

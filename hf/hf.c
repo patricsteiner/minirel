@@ -294,6 +294,12 @@ int HF_OpenFile(char *filename){
 	/* need also to fill the header directory (to know where are the free pages) */
 
 	HFftab_length ++;
+
+	error = PF_UnpinPage(pt->fd, *pagenum, 1);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
+	
 	return fileDesc;
 }
 
@@ -503,6 +509,7 @@ RECID HF_InsertRec(int fileDesc, char *record){
 
 	}
 
+
 	/*HF_PrintDataPage(datapagebuf, pt);*/
 
 	/* Algorithm : 
@@ -525,6 +532,13 @@ RECID HF_InsertRec(int fileDesc, char *record){
 	 * 
 	 * return RECID res with the appropriate recnum and pagenum 
 	 */
+	
+
+	error = PF_UnpinPage(pt->fd, pagenum, 1);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
+
 	res.recnum = recnum;
 	res.pagenum = pagenum;
 	return res;
@@ -572,7 +586,12 @@ int	HF_DeleteRec(int fileDesc, RECID recId){
 	N--;
 	memcpy((char*) (&datapagebuf[bitmap_size]), (int*) &N, sizeof(int));
 
-	/*HF_PrintDataPage(datapagebuf, pt);*/
+
+	/* HF_PrintDataPage(datapagebuf, pt); */
+	error = PF_UnpinPage(pt->fd, recId.pagenum, 1);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
 
 	return HFE_OK;
 }
