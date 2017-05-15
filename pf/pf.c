@@ -270,11 +270,18 @@ int PF_CloseFile (int fd) {
 		return PFE_UNIX;
          }
 
+	/*deletion */
+	/* a file can be deleted only if it is at then end of the table in order to have static file descriptor */
+	/* if it is not the case then the boolean valid is set to false to precise that this file is closed */
+
 	 pt->valid = FALSE;
-	 if(fd == (PFftab_length-1)) PFftab_length--;
+	 if(fd == (PFftab_length-1)){
+		 PFftab_length--;
+		if(PFftab_length>0){
+		while( ((PFftab + PFftab_length-1)->valid==FALSE) && PFftab_length>0) PFftab_length--;/* delete all the closed file, which are the end of the table */          }}
 	    printf("\nThe file '%s' containing %d pages (including header page) has been closed.\n", pt->fname, pt->hdr.numpages);
 
-	return BFE_OK;
+	return PFE_OK;
 }
 
 /* 
