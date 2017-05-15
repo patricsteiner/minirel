@@ -512,7 +512,7 @@ RECID HF_InsertRec(int fileDesc, char *record){
 
 	}
 
-	HF_PrintDataPage(datapagebuf, pt);
+	/*HF_PrintDataPage(datapagebuf, pt);*/
 
 	error = PF_UnpinPage(pt->fd, pagenum, 1);
 	if(error != PFE_OK){
@@ -554,9 +554,9 @@ int	HF_DeleteRec(int fileDesc, RECID recId){
 	}
 	N--;
 	memcpy((char*) (datapagebuf + bitmap_size), (int*) &N, sizeof(int));
-
+	/*
 	HF_PrintDataPage(datapagebuf, pt);
-
+	*/
 	error = PF_UnpinPage(pt->fd, recId.pagenum, 1);
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
@@ -619,7 +619,7 @@ RECID HF_GetNextRec(int fileDesc, RECID recId, char *record) {
 	}
 	if (HF_ValidRecId(fileDesc, recId) != TRUE) {
 		/* no error handler! */
-		recId.recnum = -1; /* make sure record is invalid so while loop is ended */
+		recId.recnum = -2; /* -1 = TRUE,make sure record is invalid so while loop is ended */
 		return recId;
 	}
 
@@ -653,10 +653,11 @@ int	HF_GetThisRec(int fileDesc, RECID recId, char *record){
 	if (record == NULL) {
 		HF_ErrorHandler(HFE_WRONGPARAMETER);
 	}
-
+	/*
 	printf("fd: %d\n", fileDesc);
 	printf("rid.pagenum: %d\n", recId.pagenum);
 	printf("rid.recnum: %d\n", recId.recnum);
+	*/
 	/*HF_PrintTable();*/
 	if (HF_ValidRecId(fileDesc, recId) != TRUE) {
 		HF_ErrorHandler(HFE_INVALIDRECORD);
@@ -679,6 +680,11 @@ int	HF_GetThisRec(int fileDesc, RECID recId, char *record){
 
 	/* add sizeof(int) to offset because a page has bitmap first, then an int to indicate number of slots */
 	memcpy((char*) record, (char*) (pagebuf + bytes_in_bitmap + sizeof(int) + hfftab_ele->header.rec_size * recId.recnum), hfftab_ele->header.rec_size);
+
+	error = PF_UnpinPage(hfftab_ele->fd, recId.pagenum, 1);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
 
 	return HFE_OK;
 }
@@ -729,7 +735,6 @@ bool_t HF_ValidRecId(int fileDesc, RECID recid){
 		return FALSE;
 	}
 	if(recid.recnum < 0 | recid.recnum > pt->header.rec_page){
-		printf("Invalid record number\n");
 		return FALSE;
 	}
 	bitmap_size = (pt->header.rec_page%8)==0 ?(pt->header.rec_page / 8): (pt->header.rec_page/8)+1;

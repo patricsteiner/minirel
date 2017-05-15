@@ -231,6 +231,7 @@ int read_string_recs(char *filename)
      printf("retrieved record: %s\n", recbuf);
      next_recid = HF_GetNextRec(fd, recid, recbuf);
      recid = next_recid;
+     printf("next record to retrieve : (%d, %d) \n",recid.pagenum, recid.recnum);
   }
 
   if (HF_CloseFile(fd) != HFE_OK) {
@@ -467,25 +468,25 @@ void testPerso(){
 main()
 {
   HF_Init();
-  /*
+  
   printf("*** begin of hftest1 ***\n");
   hftest1();
   printf("*** end of hftest1 ***\n");
-  */
-  /*
+  
+  
   printf("*** begin of hftest2 ***\n");
   hftest2();
   printf("*** end of hftest2 ***\n");
-  */
+  
   /*
   printf("*** begin of hftest3 *** \n");
   hftest3();
   printf("*** end of hftest3 *** \n");
   */
-  
+  /*
   printf("*** begin of test perso ***\n");
   testPerso();
   printf("*** end of test perso ***\n");
-  
+  */
 }
 
