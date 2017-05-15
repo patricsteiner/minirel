@@ -114,11 +114,11 @@ void lru_print(LRU* lru){
 		return;
 	}
 	printf("\nThere are %d pages in the LRU list \n\n ", lru->number_of_page);
-	printf("Data\t\tDirty flag\t\tpin\t\tFd - page number\n\n");
+	printf("Dirty flag\t\tpin\t\tFd - page number\n\n");
 	pt = lru->head;
 	printf("\n");
 	do{
-             printf("%s\t\t%d\t\t%d\t\t%d\t%d\n", pt->fpage.pagebuf, pt->dirty, pt->count, pt->fd, pt->pagenum);
+             printf("\t%d\t\t%d\t\t%d\t%d\n", pt->dirty, pt->count, pt->fd, pt->pagenum);
 
 	     pt=pt->nextpage;
 	}while(pt!=NULL); /*stop the loop after the tail*/
