@@ -37,34 +37,37 @@ One point worth mentioning though is, that for every file created in PF layer, i
 Consequently each file has always at least one page (pagenumber 0).
 
 
-## Heap File LAyer
+## Heap File Layer
 
 ### File organization
 Each file is now composed of the following pages :
-- page 0 : Page File header, store the total number of pages in the file
-- page 1 : Heap File header, store the record size, number of record per page, number of pages in the file (min 2), number of free pages in the file, and a page directory (cf. **Page Directory**)
-- page 2 to n : data pages, with a bitmap, the number of occuped slots, the data
+- Page 0 : Page File header, stores the total number of pages in the file
+- Page 1 : Heap File header, stores the record size, the number of records per page, the number of pages in the file (at least 2), the number of free pages in the file and a page directory (cf. **Page Directory**)
+- Page 2 to n : Data pages, each of which has a bitmap at the start that indicates the number occupation of slots and the total nuber of slots afterwards. The rest of the page is used for actual data.
 
 ### Page Directory
-To insert an entry without accessing all the pages sequentially, we create a page directory. It must keep track of data pages that still have some free slots. In order to fulfill its mission, we create an array that tell if a page is full or not, avoiding to retrieve pages that are full.
+To insert an entry without accessing all the pages sequentially, we created a page directory. It must keep track of data pages that still have some free slots. In order to fulfill its mission, we created an array that tells if a page is full or not, avoiding to retrieve pages that are full.
 
 There are `PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char)` pages that can be stored on the header page to retrieve data.
 To avoid a size restriction, once this array is full, we add another header page instead of a data page at index `PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char) + 2`.
 
 ### Datapages
-We use an unpacked bitmap to store the data on every page, so the first bytes of the datapages are reserved for the bitmap, then the number of full slots.
+We use the unpacked page format to handle records in pages. The first bytes of each datapage represent a bitmap that indicates which slots in the page are full (1) and whcih are empty (0). After the bitmap, there is an integer (4 bytes) that indicates the total amount of slots in the datapage. After this integer, the actual data starts.
 
-**example:** 
+**Example:** 
 
-bitmap:	1011 0100	0000 0000	
+Bitmap:	1011 0100	0000 0000	
 
 Occuped slots :  4 
 
 Data : 
 
-| record | empty | record | record | empty | record | empty | empty |empty | empty | empty| empty | empty | empty | empty | empty |
+| record | empty | record | record | empty | record | empty | empty |empty | empty | empty | empty | empty | empty | empty | empty |
 
-
+#### Bitmap
+The bitmap size is always a multiple of 8, since we do not have any datatype that is smaller than char (8 bytes). So in worst-case, 7 bits are wasted.
+To calculate the size (amount of bytes) of the bitmap, we need to know the number of records that are stored in a datapage.
+Then we simply divide this number by 8 and add 1 if there is a remainder. `int HF_GetBytesInBitmap(int records_per_page)` can be used for this.
 
 ## Access Method Layer
 TODO
