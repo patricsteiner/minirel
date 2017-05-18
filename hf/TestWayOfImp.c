@@ -9,14 +9,34 @@
 #define PF_PAGE_SIZE 4092
 
 char pfpagebuf[4092];
+
+void sum( char* valuei, char* valuef, char* valuec){
+	int a=350;
+	float f=50.0;
+	char string[10];
+	memcpy((char*) string, "record11",10);
+	printf( "valuef %f \n", *((float*)valuef));
+	printf("string %s , %d\n ", string, sizeof(string));
+	printf(" size float %d \n", sizeof(float));
+	printf( "res de comparaison %d \n ", strncmp((char*) &a, valuei, 4));
+	printf( "res de comparaison %d \n ", f==*((float*)valuef) );
+	printf( " res de comparaions string %d \n", strncmp((char*) string, valuec, sizeof(string)));
+}
 int main (){
 	int y=0;/*  first record is written on the pfpagebuf */
 	int N=1; /* only one record */
         int rec_size=28;
         int rec_page=0; 
 	int i=0;
+	int value; 
+	float valuef;
+	char string[10];
+	    int rest,n_packed,x,bitmap_size;
+	sprintf((char*) string, "record%d", 10);
+	valuef=50.0;
+	value=300;
        
-       int rest,n_packed,x,bitmap_size;
+   
 
 	x=0;
 	rest= ( (PF_PAGE_SIZE  - sizeof(int) ) % (rec_size) )*8 ;  /* it is the number of unused bits in a packed formated page*/
@@ -47,7 +67,11 @@ int main (){
 	memcpy((int *)&N, pfpagebuf+(rec_size/8), sizeof(int)); 
 	printf("N after increment %d \n", N);
         
+	sum( (char*) &value, (char*)&valuef, string);
 }
+
+
+
 	
 	
 	

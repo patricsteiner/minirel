@@ -13,8 +13,9 @@
 #include "../hf/hfUtils.h"
 
 HFftab_ele *HFftab;
+HFscantab_ele *HFscantab;
 size_t HFftab_length;
-
+size_t HFscantab_length;
 void printByte(char n){
 	int j;
 	for(j = 0; j < 8; j++){
@@ -128,7 +129,9 @@ void HF_PrintDataPage(char* buf, HFftab_ele* pt){
  */
 void HF_Init(void){
 	HFftab = malloc(sizeof(HFftab_ele)*HF_FTAB_SIZE); 
+	HFscantab= malloc(sizeof(HFscantab_ele)*MAXSCANS);
 	HFftab_length = 0;
+	HFscantab_length=0;
 	PF_Init();
 }
 
@@ -190,6 +193,9 @@ int HF_CreateFile(char *filename, int RecSize){
 
 
 	/* fill the array of the hf file table*/ 
+	if(HFftab_length >= HF_FTAB_SIZE){
+		return HFE_FTABFULL;
+	}
 	pt = HFftab + HFftab_length;
 	HFftab_length ++;
 
@@ -220,7 +226,7 @@ int HF_CreateFile(char *filename, int RecSize){
 	memcpy((char*) (headerbuf+12),(int*) &pt->header.num_free_pages , sizeof(int));
 	
 
-	/* the page is dirty now*/
+	/* the page is dirty now ==> last arg of PF_UnpinPage ("dirty") set to one */
 
 	error = PF_UnpinPage(pt->fd, *pagenum, 1);
 	if(error != PFE_OK){
@@ -264,6 +270,7 @@ int HF_OpenFile(char *filename){
 	HFftab_ele *pt;
 	char *pagebuf;
 
+
 	fileDesc = HFftab_length;
 	if(fileDesc >= HF_FTAB_SIZE){
 		return HFE_FTABFULL;
@@ -293,7 +300,6 @@ int HF_OpenFile(char *filename){
 	memcpy((int*) &pt->header.rec_page, (char*) (pagebuf + 4), sizeof(int));
 	memcpy((int*) &pt->header.num_pages, (char*) (pagebuf + 8), sizeof(int));
 	memcpy((int*) &pt->header.num_free_pages, (char*) (pagebuf + 12), sizeof(int));
-
 	memcpy((char*) &pt->header.pageDirectory, (char*) (pagebuf + 16), PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char)); 
 	printf("Entry added to HF Table : %d, %d, %d, %d\n", pt->header.rec_size, pt->header.rec_page, pt->header.num_pages, pt->header.num_free_pages);
 	/* need also to fill the header directory (to know where are the free pages) */
@@ -301,7 +307,6 @@ int HF_OpenFile(char *filename){
 	HFftab_length ++;
 
 	error = PF_UnpinPage(pt->fd, 1, 1);
-
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
 	}
@@ -310,17 +315,17 @@ int HF_OpenFile(char *filename){
 }
 
 /*
- *This function closes the file with the file descriptor HFfd by calling PF_CloseFile() with its PF file descriptor. If successful,
+ *This function closes the file with the file descriptor HFfd by calling PF_CloseFile() with its PF file descriptor. If successful, 
  *deletes   the entry of this file from the table of open HF files. If there is an active scan, however, this function fails and no further
- *action is done.
+ *action is done. 
  *If the hf header has been modified, then write it on page number 1.
- *It returns HFE_OK if the file has been successfully closed, HFE_SCANOPEN if there is an active scan, an HF error code
- *otherwise.
+ *It returns HFE_OK if the file has been successfully closed, HFE_SCANOPEN if there is an active scan, an HF error code otherwise.
  *
  *dev: Paul
  */
 
-int HF_CloseFile(int hffd){
+
+int	HF_CloseFile(int hffd){
 	HFftab_ele* pt;
 	int error;
 	char* pagebuf;
@@ -328,17 +333,18 @@ int HF_CloseFile(int hffd){
 	i=0;
 	
 	
-	if (hffd < 0 || hffd >= HFftab_length){
-		printf("table length : %d\n", HFftab_length);
-		return HFE_FD;
-	} 
+
+	if (hffd < 0 || hffd >= HFftab_length) return HFE_FD;
 	pt=HFftab + hffd ;
 	/*check is file is not already close */
 	if (pt->valid!=TRUE) return HFE_FILENOTOPEN;
+
+
 	/* check the header */
 	if (pt->dirty==TRUE){ /* header has to be written again */
 		error=PF_GetThisPage( pt->fd, 1, &pagebuf);
 		if(error!=PFE_OK)PF_ErrorHandler(error);
+
 
 		/* write the header  */
 		memcpy((char*) pagebuf,(int*) &pt->header.rec_size, sizeof(int));
@@ -346,6 +352,8 @@ int HF_CloseFile(int hffd){
 		memcpy((char*) (pagebuf+8),(int*) &pt->header.num_pages, sizeof(int));    
 		memcpy((char*) (pagebuf+12),(int*) &pt->header.num_free_pages , sizeof(int));
 		memcpy((char*) (pagebuf + 16),(char*) &pt->header.pageDirectory, PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char));
+
+
 		/* the page is dirty now ==> last arg of PF_UnpinPage ("dirty") set to one */
 		error = PF_UnpinPage(pt->fd, 1, 1);
 		if(error != PFE_OK){
@@ -356,19 +364,22 @@ int HF_CloseFile(int hffd){
 	/* close the file using pf layer */
 	error=PF_CloseFile(pt->fd);
 	if(error!=PFE_OK)PF_ErrorHandler(error);
+
 	/* check that there is no scan in progress involving this file*/
 	/* by scanning the scan table */
-	/*
 	for (i=0;i<HFscantab_length;i++){
 			if((HFscantab+i)->HFfd==hffd) return HFE_SCANOPEN;
 	}
-	*/
+	
+
 	
 	/*deletion */
 	/* a file can be deleted only if it is at then end of the table in order to have static file descriptor */
 	/* In any case the boolean valid is set to false to precise that this file is closed */
-	pt->valid==FALSE;
-	if(hffd==(HFftab_length-1)){ /* it is the last file of the table */
+        pt->valid==FALSE;
+	if(hffd==(HFftab_length-1)){ /* it is the last file of the table */ 
+		HFftab_length--;
+
 		if(HFftab_length >0){
 			HFftab_length--;
 			while (((HFftab+ HFftab_length-1)->valid==FALSE)&& HFftab_length>0){
@@ -408,7 +419,12 @@ RECID HF_InsertRec(int fileDesc, char *record){
 	}
 
 	pt = HFftab + fileDesc;
-
+	/*check if file is open*/
+	if (pt->valid!=TRUE) {
+		res.recnum=HFE_FILENOTOPEN;
+		res.pagenum=HFE_FILENOTOPEN;
+		return res;
+	}
 	if (pt->valid == FALSE){ 
 		res.recnum = HFE_FILENOTOPEN;
 		res.pagenum = HFE_FILENOTOPEN;
@@ -512,12 +528,37 @@ RECID HF_InsertRec(int fileDesc, char *record){
 
 	}
 
-	/*HF_PrintDataPage(datapagebuf, pt);*/
+
+
+
+	/* Algorithm : 
+	 * Chech file desc
+	 * Get the HFftab_elem associated
+	 ******** FIND A PAGE *********
+	 * If num_free_pages == 0
+		allocate a page, write the bitmap (only zeroes), set recnum = 0 and pagenum (given by PFallocpage)
+		update the HFtab_elem info 
+	 * else, find the first freepage by looping through the char array (1 : full, 0 : free, -1 : not created)
+	 	for the first number found, break the loop and get pagenum.
+	 	if no more freespace in the char array, reach next header page (numPageHeader + len_bitmap + 1) (repeat under freespace is found) 
+	 
+	 ******** FIND A FREE RECNUM ***********
+	 * Once we found a page, get the bitmap, and the remaining space
+	 * look for a free recnum (1 : full, 0 : free) using a readbytes mask function
+	 * write the record into the appropriate recnum (check the size of the record)
+	 * write the chage into the bitmap
+	 * update the remainig slots (if full, update the correct char array and hftab_elem_info)
+	 * 
+	 * return RECID res with the appropriate recnum and pagenum 
+	 */
+	
+
 
 	error = PF_UnpinPage(pt->fd, pagenum, 1);
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
 	}
+
 	res.recnum = recnum;
 	res.pagenum = pagenum;
 	return res;
@@ -537,6 +578,8 @@ int	HF_DeleteRec(int fileDesc, RECID recId){
 	if( !HF_ValidRecId(fileDesc, recId) ) return HFE_INVALIDRECORD;
 
 	pt = HFftab + fileDesc;
+	/* check if file is open*/
+	if (pt->valid!=TRUE) return HFE_FILENOTOPEN;
 	bitmap_size = (pt->header.rec_page%8)==0 ?(pt->header.rec_page / 8): (pt->header.rec_page/8)+1;
 
 	error = PF_GetThisPage(pt->fd, recId.pagenum, &datapagebuf);
@@ -553,10 +596,12 @@ int	HF_DeleteRec(int fileDesc, RECID recId){
 		pt->dirty = FALSE;
 	}
 	N--;
+
 	memcpy((char*) (datapagebuf + bitmap_size), (int*) &N, sizeof(int));
 	/*
 	HF_PrintDataPage(datapagebuf, pt);
 	*/
+
 	error = PF_UnpinPage(pt->fd, recId.pagenum, 1);
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
@@ -689,18 +734,264 @@ int	HF_GetThisRec(int fileDesc, RECID recId, char *record){
 	return HFE_OK;
 }
 
-int HF_OpenFileScan(int fileDesc, char attrType, int attrLength, int attrOffset, int op, char *value){
-	return 0;
+
+/*
+ *
+ *This function opens a scan over the file associated with HFfd in order to return its records whose value of the indicated attribute satisfies the specified condition. 
+ *The attrType field represents an attribute type, which can be a character string of length 255 or less (c), an integer (i), or a float (f). 
+ *If value is a null pointer, then a scan of the entire file is desired. Otherwise, value will point to the (binary) value that records are to be compared with. 
+ *The scan descriptor returned is an index into the scan table (implemented and maintained by your HF layer code) used for keeping track of information about the state of in-progress file scans. Information such as the record id of the record that was just scanned, what files are open due to the scan, etc., are to be kept in this table. If the scan table is full, an HF error code is returned in place of a scan descriptor.
+ *dev: Paul
+ */
+int HF_OpenFileScan(int hffd, char attrType, int attrLength, int attrOffset, int op, char *value){
+	HFscantab_ele* pt;
+	HFftab_ele* ptfile;
+	
+	
+	if (hffd < 0 || hffd >= HFftab_length) return HFE_FD;
+	ptfile= HFftab + hffd;
+	
+	if (ptfile->valid!=TRUE) return HFE_FILENOTOPEN;
+
+	if(HFscantab_length >= HF_FTAB_SIZE){
+		return HFE_STABFULL;
+	}
+	pt=HFscantab+HFscantab_length;
+	
+	/* parameters checking */
+	if ( attrType!='c'&& attrType !='f' && attrType!='i') return HFE_ATTRTYPE;
+	if ( attrLength<=0) return HFE_ATTRLENGTH;
+	if ( attrOffset<0 || attrOffset>=ptfile->header.rec_size) return HFE_ATTROFFSET;
+	if( op >6 || op<1) return HFE_OPERATOR;
+	
+	pt->attrType=attrType;
+	pt->attrLength=attrLength;
+	pt->attrOffset=attrOffset;
+	pt->op=op;
+	printf( "cast %f \n", *( (float*)value ) );
+	memcpy( (char*) pt->value, (char*)value, attrLength);
+	printf( "cast2 %f \n", *( (float*)pt->value ) ); 
+	pt->current.recnum=0;
+	pt->current.pagenum=2;
+	pt->HFfd=hffd;
+	pt->valid=TRUE;
+
+	HFscantab_length++;
+
+	return HFscantab_length-1;
 }
+
+/*
+ *This function retrieves a copy of the next record in the file being scanned through scanDesc that satisfies the scan predicate. If it succeeds, it returns the record id of this record and places a copy of the record in the location pointed to by record. It returns HFE_EOF if there are no records left to scan in the file, and an HF error code otherwise.
+ *
+ *dev:Paul
+ */
 
 RECID HF_FindNextRec(int scanDesc, char *record){
+	HFscantab_ele* ptscan;
+	HFftab_ele* ptfile;
 	RECID res;
-	res.recnum = 0;
-	res.pagenum = 0;
-	return res;
+	float f; /* for attribute of type float */
+	int bit;
+	int comp;
+	char *offrecord; /* for attribute of type str and int, used in strncomp */
+	int bitmap_size;
+	int error;
+	int pagenum;
+	int recnum;
+	char* pagebuf;
+	char *recordbuff;
+	
+	/* initialisation*/
+	
+
+	
+
+
+	/*parameter checking */
+	if (scanDesc < 0 || (scanDesc >= HFscantab_length && HFscantab_length !=0) ) {
+			res.recnum = HFE_EOF;
+			res.pagenum = HFE_EOF;
+			return res;
+
+		}
+	if( record==NULL) {
+			res.recnum = -150;
+			res.pagenum = -150;
+			return res;
+
+		}
+	ptscan=HFscantab+scanDesc;
+	ptfile=HFftab+(ptscan->HFfd);
+
+	bitmap_size = (ptfile->header.rec_page%8)==0 ?(ptfile->header.rec_page / 8): (ptfile->header.rec_page/8)+1;
+
+	/*check if scan is open */
+	if (ptscan->valid!=TRUE) {
+		res.recnum=HFE_SCANNOTOPEN;
+		res.pagenum=HFE_SCANNOTOPEN;
+		return res;
+	}
+	pagenum=ptscan->current.pagenum;
+	recnum=ptscan->current.recnum;
+
+	error=PF_GetThisPage(ptfile->fd, pagenum, &pagebuf);
+	if(error!=PFE_OK) PF_ErrorHandler(error);
+	HF_PrintDataPage(pagebuf, ptfile);
+	/* for the buffer of the record fiel being compared */
+	offrecord=malloc( ptscan->attrLength);
+	
+	
+	while(1){
+	
+		/* check if record is really a full slot with bitmap*/
+		
+		bit = (pagebuf[recnum/8] & (int) pow(2,(recnum%8)) ) >> (recnum%8);
+		printf( "le bit %d \n", bit);
+		if ( bit!=1){
+			/* no record at this number ==> go to next one*/
+			recnum++;
+			continue;
+		} 
+		/* now it is assured that the slot "recnum" is full */ 
+		/*get this record and do the comparison */
+		memcpy((char*) record,(char*) (pagebuf+bitmap_size+ sizeof(int) + recnum*(ptfile->header.rec_size) ) ,  (ptfile->header.rec_size));
+		
+		/* comparison step: -apply offset
+				    -switch case op
+				    -comparison with value for string with strcomp
+				    -comparison with  for int or float with classic operatior (< > = ) */
+		/* use strncmp for int and string to save computations, does not work for float */
+		printf("pagenum %d \n", pagenum);
+		if(ptscan->attrType !='f') memcpy(offrecord, (char*) (pagebuf+bitmap_size + sizeof(int) + recnum * ptfile->header.rec_size), ptfile->header.rec_size);
+		else memcpy((float*) &f, (char*) record+(ptscan->attrOffset), ptscan->attrLength);
+		
+		printf(" record %s \n " , record);
+		printf(" offrecord %s \n " , offrecord);
+		printf( "cast2 %f \n", *( (float*)ptscan->value ) ); 
+		printf("f %f \n", f);
+		if ( ptscan->attrType !='f') comp=strncmp((char*)offrecord, (char*) ptscan->value, ptscan->attrLength+1);
+		printf("comp %d \n", comp);
+		switch(ptscan->op) {
+			case 1: 
+				if ( (ptscan->attrType == 'f' && f==*((float*)ptscan->value)) || comp==0 ){
+					/*matching record is found, udpate the scan table element and then return */
+					ptscan->current.recnum=recnum;
+					ptscan->current.pagenum=pagenum;
+					res.recnum=recnum ;
+					res.pagenum=pagenum;
+					free(offrecord);
+					return res; /* copy of the record is already in the parameter, now the recid is returned*/
+					}
+
+		              	break;
+			case 2:
+				if ( (ptscan->attrType == 'f' && f<*((float*)ptscan->value)) || comp<0 ){
+					/*matching record is found, udpate the scan table element and then return */
+					ptscan->current.recnum=recnum;
+					ptscan->current.pagenum=pagenum;
+					res.recnum=recnum ;
+					res.pagenum=pagenum;
+					free(offrecord);
+					return res; /* copy of the record is already in the parameter, now the recid is returned*/
+					}
+				break;
+			case 3:
+				if ( (ptscan->attrType=='f' && f>*((float*)ptscan->value)) || comp>0 ){
+					/*matching record is found, udpate the scan table element and then return */
+					ptscan->current.recnum=recnum;
+					ptscan->current.pagenum=pagenum;
+					res.recnum=recnum ;
+					res.pagenum=pagenum;
+					free(offrecord);
+					return res; /* copy of the record is already in the parameter, now the recid is returned*/
+					}
+				break;
+			case 4: 
+				if ( (ptscan->attrType == 'f' && f<=*((float*)ptscan->value)) || comp<=0 ){
+					/*matching record is found, udpate the scan table element and then return */
+					ptscan->current.recnum=recnum;
+					ptscan->current.pagenum=pagenum;
+					res.recnum=recnum ;
+					res.pagenum=pagenum;
+					free(offrecord);
+					return res; /* copy of the record is already in the parameter, now the recid is returned*/
+					}
+				break;
+			case 5: 
+				if ( (ptscan->attrType == 'f' && f>=*((float*)ptscan->value)) || comp>=0 ){
+					/*matching record is found, udpate the scan table element and then return */
+					ptscan->current.recnum=recnum;
+					ptscan->current.pagenum=pagenum;
+					res.recnum=recnum ;
+					res.pagenum=pagenum;
+					free(offrecord);
+					return res; /* copy of the record is already in the parameter, now the recid is returned*/
+					}
+				break;
+			case 6:
+				if ( (ptscan->attrType == 'f' && f!=*((float*)ptscan->value) ) || comp!=0 ){
+					/*matching record is found, udpate the scan table element and then return */
+					ptscan->current.recnum=recnum;
+					ptscan->current.pagenum=pagenum;
+					res.recnum=recnum ;
+					res.pagenum=pagenum;
+					free(offrecord);
+					return res; /* copy of the record is already in the parameter, now the recid is returned*/
+					}
+				break;
+			default: 
+				free(offrecord);
+				res.recnum = HFE_OPERATOR;
+				res.pagenum = HFE_OPERATOR;
+				return res;
+			}
+
+	
+		/*last record of the file */
+		if(pagenum >= /*(ptfile->header.num_pages-1)*/2 && recnum >= (ptfile->header.rec_page-1)){
+			res.recnum = HFE_EOF;
+			res.pagenum = HFE_EOF;
+			return res;
+
+		}
+		/*last record of the page 
+		if( recnum >= (ptfile->header.rec_page)-1){
+			error=PF_GetNextPage(ptfile->fd,&pagenum,&pagebuf);
+			if(error!=PFE_OK) PF_ErrorHandler(error);
+		}    
+		*/
+		recnum++;
+
+
+	}
+		
+	
+	
 }
 
+/*
+ *This function terminates the file scan indicated by scanDesc. It returns HFE_OK if it succeeds, and an HF error code otherwise.
+ *
+ *dev:Paul
+ */
 int	HF_CloseFileScan(int scanDesc){
+		HFscantab_ele* ptscan;
+		
+		
+		if (scanDesc < 0 ||  (scanDesc >= HFscantab_length && HFscantab_length !=0)) return HFE_SD;
+		/* same policy than for file table,if it is last scan in table:- deleted from table by decreasing the length of 1 (and deleted all following scan with boolean at FALSE 
+										- otherwise put boolean valid to false*/
+		ptscan=HFscantab+scanDesc;
+		if (ptscan->valid==FALSE) return HFE_SCANNOTOPEN; 
+		if ( scanDesc==HFscantab_length-1){
+			     if (HFscantab_length>0) HFscantab_length--;
+			     while( ((HFscantab+HFscantab_length-1)->valid==FALSE) && (HFscantab_length>0)) {
+				 	HFscantab_length--;
+				}
+		}
+		
+																
 	return 0;
 }
 

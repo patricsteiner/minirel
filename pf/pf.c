@@ -272,19 +272,20 @@ int PF_CloseFile (int fd) {
 		return PFE_UNIX;
          }
 
-	pt->valid = FALSE;
-	if(fd == (PFftab_length-1)) {
-		if(PFftab_length > 0){
-			PFftab_length--;
-			while(((PFftab + PFftab_length - 1)->valid == FALSE) && PFftab_length > 0){
-				PFftab_length--;
-			}
-			
-		}
-	}
-	printf("\nThe file '%s' containing %d pages (including header page) has been closed.\n", pt->fname, pt->hdr.numpages);
+	/*deletion */
+	/* a file can be deleted only if it is at then end of the table in order to have static file descriptor */
+	/* if it is not the case then the boolean valid is set to false to precise that this file is closed */
 
-	return BFE_OK;
+	 pt->valid = FALSE;
+	 if(fd == (PFftab_length-1)){
+		
+		if(PFftab_length>0){
+		 PFftab_length--;
+		while( ((PFftab + PFftab_length-1)->valid==FALSE) && PFftab_length>0) PFftab_length--;/* delete all the closed file, which are the end of the table */          }}
+	    printf("\nThe file '%s' containing %d pages (including header page) has been closed.\n", pt->fname, pt->hdr.numpages);
+
+
+	return PFE_OK;
 }
 
 /* 
@@ -338,7 +339,7 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 
 
 /*
- *Get the page after pagenum and return *pagenum+1
+ *Get the page after pagenum in pagebuf and change pagenum to *pagenum+1
  *Dev: Paul
  */
 
