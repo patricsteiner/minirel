@@ -335,7 +335,7 @@ int PF_AllocPage (int fd, int *pagenum, char **pagebuf) {
 
 
 /*
- *Get the page after pagenum and return *pagenum+1
+ *Get the page after pagenum in pagebuf and change pagenum to *pagenum+1
  *Dev: Paul
  */
 

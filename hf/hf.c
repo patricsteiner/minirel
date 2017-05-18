@@ -260,6 +260,7 @@ int HF_OpenFile(char *filename){
 	HFftab_ele *pt;
 	char *pagebuf;
 
+
 	fileDesc = HFftab_length;
 	if(fileDesc >= HF_FTAB_SIZE){
 		return HFE_FTABFULL;
@@ -295,7 +296,7 @@ int HF_OpenFile(char *filename){
 
 	HFftab_length ++;
 
-	error = PF_UnpinPage(pt->fd, *pagenum, 1);
+	error = PF_UnpinPage(pt->fd, 1, 1);
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
 	}
@@ -631,7 +632,7 @@ int HF_OpenFileScan(int hffd, char attrType, int attrLength, int attrOffset, int
 	if (hffd < 0 || hffd >= HFftab_length) return HFE_FD;
 	ptfile= HFftab + hffd;
 	
-	if (pt->valid!=TRUE) return HFE_FILENOTOPEN;
+	if (ptfile->valid!=TRUE) return HFE_FILENOTOPEN;
 
 	if(HFscantab_length >= HF_FTAB_SIZE){
 		return HFE_STABFULL;
@@ -648,12 +649,17 @@ int HF_OpenFileScan(int hffd, char attrType, int attrLength, int attrOffset, int
 	pt->attrLength=attrLength;
 	pt->attrOffset=attrOffset;
 	pt->op=op;
-	memcpy( (char*) pt->value, (char*)value, attrLength); 
+	printf( "cast %f \n", *( (float*)value ) );
+	memcpy( (char*) pt->value, (char*)value, attrLength);
+	printf( "cast2 %f \n", *( (float*)pt->value ) ); 
+	pt->current.recnum=0;
+	pt->current.pagenum=2;
 	pt->HFfd=hffd;
 	pt->valid=TRUE;
 
+	HFscantab_length++;
 
-	return HFscantab_length;
+	return HFscantab_length-1;
 }
 
 /*
@@ -669,28 +675,38 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 	float f; /* for attribute of type float */
 	int bit;
 	int comp;
-	char * offrecord; /* for attribute of type str and int, used in strncomp */
+	char *offrecord; /* for attribute of type str and int, used in strncomp */
 	int bitmap_size;
 	int error;
 	int pagenum;
 	int recnum;
 	char* pagebuf;
+	char *recordbuff;
 	
 	/* initialisation*/
 	
+
 	
-	bitmap_size = (ptfile->header.rec_page%8)==0 ?(ptfile->header.rec_page / 8): (ptfile->header.rec_page/8)+1;
 
 
 	/*parameter checking */
-	if (scanDesc < 0 || scanDesc >= HFscantab_length) {
-			res.recnum = HFE_SD;
-			res.pagenum = HFE_SD;
+	if (scanDesc < 0 || (scanDesc >= HFscantab_length && HFscantab_length !=0) ) {
+			res.recnum = HFE_EOF;
+			res.pagenum = HFE_EOF;
 			return res;
-	}
-	
+
+		}
+	if( record==NULL) {
+			res.recnum = -150;
+			res.pagenum = -150;
+			return res;
+
+		}
 	ptscan=HFscantab+scanDesc;
 	ptfile=HFftab+(ptscan->HFfd);
+
+	bitmap_size = (ptfile->header.rec_page%8)==0 ?(ptfile->header.rec_page / 8): (ptfile->header.rec_page/8)+1;
+
 	/*check if scan is open */
 	if (ptscan->valid!=TRUE) {
 		res.recnum=HFE_SCANNOTOPEN;
@@ -702,25 +718,17 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 
 	error=PF_GetThisPage(ptfile->fd, pagenum, &pagebuf);
 	if(error!=PFE_OK) PF_ErrorHandler(error);
-
+	HF_PrintDataPage(pagebuf, ptfile);
+	/* for the buffer of the record fiel being compared */
+	offrecord=malloc( ptscan->attrLength);
+	
+	
 	while(1){
-		/*last record of the file */
-		if(pagenum >= (ptfile->header.num_pages-1) && recnum >= (ptfile->header.rec_page-1)){
-			res.recnum = HFE_EOF;
-			res.pagenum = HFE_EOF;
-			return res;
-
-		}
-		/*last record of the page */ 
-		if( recnum >= (ptfile->header.rec_page)-1){
-
-			error=PF_GetNextPage(ptfile->fd,&pagenum,&pagebuf);
-			if(error!=PFE_OK) PF_ErrorHandler(error);
-		}
-
+	
 		/* check if record is really a full slot with bitmap*/
 		
 		bit = (pagebuf[recnum/8] & (int) pow(2,(recnum%8)) ) >> (recnum%8);
+		printf( "le bit %d \n", bit);
 		if ( bit!=1){
 			/* no record at this number ==> go to next one*/
 			recnum++;
@@ -728,18 +736,23 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 		} 
 		/* now it is assured that the slot "recnum" is full */ 
 		/*get this record and do the comparison */
-		memcpy((char*) record,(char*) (&pagebuf[bitmap_size] + sizeof(int) + recnum*(ptfile->header.rec_size) ) ,  (ptfile->header.rec_size));
+		memcpy((char*) record,(char*) (pagebuf+bitmap_size+ sizeof(int) + recnum*(ptfile->header.rec_size) ) ,  (ptfile->header.rec_size));
 		
 		/* comparison step: -apply offset
 				    -switch case op
 				    -comparison with value for string with strcomp
 				    -comparison with  for int or float with classic operatior (< > = ) */
 		/* use strncmp for int and string to save computations, does not work for float */
-
-		if(ptscan->attrType !='f') memcpy((char*) offrecord, (char*) record+(ptscan->attrOffset), ptscan->attrLength);
+		printf("pagenum %d \n", pagenum);
+		if(ptscan->attrType !='f') memcpy(offrecord, (char*) (pagebuf+bitmap_size + sizeof(int) + recnum * ptfile->header.rec_size), ptfile->header.rec_size);
 		else memcpy((float*) &f, (char*) record+(ptscan->attrOffset), ptscan->attrLength);
-
-		if ( ptscan->attrType !='f') comp=strncmp(offrecord, ptscan->value, ptscan->attrLength);
+		
+		printf(" record %s \n " , record);
+		printf(" offrecord %s \n " , offrecord);
+		printf( "cast2 %f \n", *( (float*)ptscan->value ) ); 
+		printf("f %f \n", f);
+		if ( ptscan->attrType !='f') comp=strncmp((char*)offrecord, (char*) ptscan->value, ptscan->attrLength+1);
+		printf("comp %d \n", comp);
 		switch(ptscan->op) {
 			case 1: 
 				if ( (ptscan->attrType == 'f' && f==*((float*)ptscan->value)) || comp==0 ){
@@ -748,6 +761,7 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 					ptscan->current.pagenum=pagenum;
 					res.recnum=recnum ;
 					res.pagenum=pagenum;
+					free(offrecord);
 					return res; /* copy of the record is already in the parameter, now the recid is returned*/
 					}
 
@@ -759,6 +773,7 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 					ptscan->current.pagenum=pagenum;
 					res.recnum=recnum ;
 					res.pagenum=pagenum;
+					free(offrecord);
 					return res; /* copy of the record is already in the parameter, now the recid is returned*/
 					}
 				break;
@@ -769,6 +784,7 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 					ptscan->current.pagenum=pagenum;
 					res.recnum=recnum ;
 					res.pagenum=pagenum;
+					free(offrecord);
 					return res; /* copy of the record is already in the parameter, now the recid is returned*/
 					}
 				break;
@@ -779,6 +795,7 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 					ptscan->current.pagenum=pagenum;
 					res.recnum=recnum ;
 					res.pagenum=pagenum;
+					free(offrecord);
 					return res; /* copy of the record is already in the parameter, now the recid is returned*/
 					}
 				break;
@@ -789,6 +806,7 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 					ptscan->current.pagenum=pagenum;
 					res.recnum=recnum ;
 					res.pagenum=pagenum;
+					free(offrecord);
 					return res; /* copy of the record is already in the parameter, now the recid is returned*/
 					}
 				break;
@@ -799,26 +817,31 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 					ptscan->current.pagenum=pagenum;
 					res.recnum=recnum ;
 					res.pagenum=pagenum;
+					free(offrecord);
 					return res; /* copy of the record is already in the parameter, now the recid is returned*/
 					}
 				break;
 			default: 
+				free(offrecord);
 				res.recnum = HFE_OPERATOR;
 				res.pagenum = HFE_OPERATOR;
 				return res;
-			}	
+			}
+
+	
 		/*last record of the file */
-		if(pagenum >= (ptfile->header.num_pages-1) && recnum >= (ptfile->header.rec_page-1)){
+		if(pagenum >= /*(ptfile->header.num_pages-1)*/2 && recnum >= (ptfile->header.rec_page-1)){
 			res.recnum = HFE_EOF;
 			res.pagenum = HFE_EOF;
 			return res;
 
 		}
-		/*last record of the page */ 
+		/*last record of the page 
 		if( recnum >= (ptfile->header.rec_page)-1){
 			error=PF_GetNextPage(ptfile->fd,&pagenum,&pagebuf);
 			if(error!=PFE_OK) PF_ErrorHandler(error);
 		}    
+		*/
 		recnum++;
 
 
@@ -837,7 +860,7 @@ int	HF_CloseFileScan(int scanDesc){
 		HFscantab_ele* ptscan;
 		
 		
-		if (scanDesc < 0 || scanDesc >= HFscantab_length) return HFE_SD;
+		if (scanDesc < 0 ||  (scanDesc >= HFscantab_length && HFscantab_length !=0)) return HFE_SD;
 		/* same policy than for file table,if it is last scan in table:- deleted from table by decreasing the length of 1 (and deleted all following scan with boolean at FALSE 
 										- otherwise put boolean valid to false*/
 		ptscan=HFscantab+scanDesc;

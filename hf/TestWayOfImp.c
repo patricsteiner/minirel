@@ -14,8 +14,8 @@ void sum( char* valuei, char* valuef, char* valuec){
 	int a=350;
 	float f=50.0;
 	char string[10];
-	memcpy( (char*) string, "0123456789", 10);
-
+	memcpy((char*) string, "record11",10);
+	printf( "valuef %f \n", *((float*)valuef));
 	printf("string %s , %d\n ", string, sizeof(string));
 	printf(" size float %d \n", sizeof(float));
 	printf( "res de comparaison %d \n ", strncmp((char*) &a, valuei, 4));
@@ -32,7 +32,7 @@ int main (){
 	float valuef;
 	char string[10];
 	    int rest,n_packed,x,bitmap_size;
-	memcpy( (char*) string, "0023456780", 10);
+	sprintf((char*) string, "record%d", 10);
 	valuef=50.0;
 	value=300;
        
