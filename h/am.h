@@ -69,5 +69,5 @@ void AM_PrintError	(char *errString);
  * global error value
  */
 extern int AMerrno;
-AMerrno = 0;
+
 #endif

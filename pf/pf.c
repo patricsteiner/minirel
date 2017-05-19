@@ -20,7 +20,7 @@ void PF_PrintTable(void){
 	printf("\n\n******** PF Table ********\n");
 	printf("******* Length : %d *******\n",(int) PFftab_length);
 	for(i=0; i<PFftab_length; i++){
-		printf("* %d : %s : %d pages  *\n", (int) i, PFftab[i].fname, PFftab[i].hdr.numpages);
+		printf("* %d : %s : %d pages : %d valid *\n", (int) i, PFftab[i].fname, PFftab[i].hdr.numpages, PFftab[i].valid);
 	}
 	printf("**************************\n\n");
 
@@ -107,6 +107,7 @@ int PF_CreateFile(char *filename){
 	/*sprintf(fpage->pagebuf, "%d", pt->hdr.numpages); /*all the page is for header of file == number of pages in the page.*/
 	memcpy((char*) fpage->pagebuf, (int *)&(pt->hdr.numpages), sizeof(int));
 	breq.dirty=TRUE;
+	pt->valid=FALSE;
 
 	ret=BF_TouchBuf(breq); /* page is dirty */
 	if(ret!=0) BF_ErrorHandler(ret);
@@ -119,13 +120,13 @@ int PF_CreateFile(char *filename){
 	
 	/* final step close the file and remove it from PFftable*/
 	PFftab_length--; /* enough to remove it for the table */
-	
 	ret=close(unixfd);
 	
 	if (ret < 0) {  
 	    /* problem occurred while closing the file */
 	    return PFE_UNIX;
-	}   
+	}
+
 	return PFE_OK;
 }	
 
@@ -217,8 +218,9 @@ int PF_OpenFile (char *filename) {
 
     res= BF_UnpinBuf(bq); /* page has pinned to 0 now */
 	if(res!=0) BF_ErrorHandler(res);
-
+	/*
     printf("\nThe file '%s' containing %d pages (including header page) has been added to the PFtable.\n", filename, pt->hdr.numpages);
+	*/
 	return bq.fd;
 }
 
@@ -282,8 +284,9 @@ int PF_CloseFile (int fd) {
 		if(PFftab_length>0){
 		 PFftab_length--;
 		while( ((PFftab + PFftab_length-1)->valid==FALSE) && PFftab_length>0) PFftab_length--;/* delete all the closed file, which are the end of the table */          }}
+	    /*
 	    printf("\nThe file '%s' containing %d pages (including header page) has been closed.\n", pt->fname, pt->hdr.numpages);
-
+		*/
 
 	return PFE_OK;
 }
