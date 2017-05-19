@@ -73,7 +73,14 @@ Then we simply divide this number by 8 and add 1 if there is a remainder. `int H
 To find records that match a specific condition, a filescan must be initiated by calling `int HF_OpenFileScan(int hffd, char attrType, int attrLength, int attrOffset, int op, char *value)`. This function will create a new entry in the scantable that keeps track of the position of the currently scanned record as well as all relevant data to the scan, such as heapfile descriptor, comparison attributes and a flag that indicates if the scan is currently running. After setting up a scan, it can be executed by calling `RECID HF_FindNextRec(int scanDesc, char *record)`, which just iterates through the records looking for items that match the condition that has been set in the filescan. After finding the results, when the filescan is not needed anymore, it must be closed with the function `int	HF_CloseFileScan(int scanDesc)`.
 
 ## Access Method Layer
-TODO
+The AM Layer is on the same architectural level as the the HF Layer, right above the PF Layer. Its purpose is to provide methods to access data in an efficient way, namely by using B+Tree indexes.
+
+### B+Tree Index representation
+To store an index on the disk, we simply make use of the underlying PF Layer functions, so IO operations for an index are done using the functions of a paged file.
+
+### Finding records (scanning the index)
+Finding records by given criteria works similar to finding records in the heap file. The main difference is, that instead of sequentially scanning the whole file and compare every single record to the given condition, we can make use of the order of items in a B+Tree and thus access items in a more efficient manner.
+To open a scan, the function `int AM_OpenIndexScan(int fileDesc, int op, char *value)` has to be used, which sets up an entry in the index scantable. The entries in this table hold all necessary information to find records by the given criteria as well as file names and descriptors of the paged file that stores the index and the file that contains the effective data. Similarly to the HF Layer, `RECID AM_FindNextEntry(int scanDesc)` is used to find an entry that satisfied the given condition and `int AM_CloseIndexScan(int scanDesc)` is used to clean up at the end.
 
 ## Frontend Layer
 TODO
