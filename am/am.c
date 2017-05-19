@@ -108,10 +108,129 @@ int AM_DestroyIndex(char *fileName, int indexNo){
 }
 
 int AM_OpenIndex(char *fileName, int indexNo){
-	return AME_OK;
+	int error, pffd, fileDesc;
+	AMitab_ele *pt;
+	char *headerbuf;
+	char* new_filename;
+	
+	/*Initialisation */
+	new_filename = malloc(sizeof(fileName) + sizeof(int));
+	fileDesc = AMitab_length;
+	/*parameters cheking */
+	if(fileDesc >= AM_ITAB_SIZE){
+		return AME_FULLTABLE;
+	}
+	sprintf(new_filename, "%s.%i", fileName, indexNo);
+	pffd = PF_OpenFile(new_filename);
+	if(pffd < 0){
+		PF_ErrorHandler(pffd);
+	}
+
+	/* read the header which are stored on the second page of the file (index = 1) */ 
+	error = PF_GetThisPage(pffd, 1, &headerbuf);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
+
+
+	/* Fill the array of the AM index table */
+	
+	pt = AMitab + AMitab_length;
+	
+	pt->fd = pffd;
+	pt->valid = TRUE;
+	pt->dirty = FALSE;
+	pt->racine_page = 2;
+	
+	memcpy(pt->iname, new_filename, sizeof(new_filename));
+	free(new_filename);
+	memcpy( (int*) &pt->header.indexNo,(char*) headerbuf, sizeof(int));
+	memcpy((int*) &pt->header.attrType,(char*) headerbuf,  sizeof(char));
+	memcpy( (int*) &pt->header.attrLength, (char*) headerbuf,sizeof(int));
+	memcpy((int*) &pt->header.height_tree,(char*) headerbuf,  sizeof(int));
+	memcpy( (int*) &pt->header.nb_leaf,(char*) headerbuf, sizeof(int));
+
+	pt->fanout = ( (PF_PAGE_SIZE ) - (3+1)*sizeof(int)) / (sizeof(int) + pt->header.attrLength);
+	
+	
+	/*increment the size of the table*/
+	AMitab_length ++;
+
+	/*unpin and touch the header page */
+	error = PF_UnpinPage(pt->fd, 1, 1);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
+	
+	return fileDesc;
+	
 }
 
 int AM_CloseIndex(int fileDesc){
+
+	AMitab_ele* pt;
+	int error;
+	char* pagebuf;
+	int i;
+	i=0;
+	
+	
+
+	if (fileDesc < 0 || fileDesc >= AMitab_length) return AME_FD;
+	pt=AMitab + fileDesc ;
+	/*check is file is not already close */
+	if (pt->valid!=TRUE) return AME_INDEXNOTOPEN;
+
+
+	/* check the header */
+	if (pt->dirty==TRUE){ /* header has to be written again */
+		error=PF_GetThisPage( pt->fd, 1, &pagebuf);
+		if(error!=PFE_OK)PF_ErrorHandler(error);
+
+
+		/* write the header  */
+		
+		memcpy((char*) pagebuf, (int*) &pt->header.indexNo, sizeof(int));
+		memcpy((char*) pagebuf, (int*) &pt->header.attrType, sizeof(char));
+		memcpy((char*) pagebuf, (int*) &pt->header.attrLength, sizeof(int));
+		memcpy((char*) pagebuf, (int*) &pt->header.height_tree, sizeof(int));
+		memcpy((char*) pagebuf, (int*) &pt->header.nb_leaf, sizeof(int));
+
+
+		/* the page is dirty now ==> last arg of PF_UnpinPage ("dirty") set to one */
+		error = PF_UnpinPage(pt->fd, 1, 1);
+		if(error != PFE_OK) PF_ErrorHandler(error);
+		
+		
+	}
+	/* close the file using pf layer */
+	error=PF_CloseFile(pt->fd);
+	if(error!=PFE_OK)PF_ErrorHandler(error);
+
+	/* check that there is no scan in progress involving this file*/
+	/* by scanning the scan table */
+	/*****************for (i=0;i<AMscantab_length;i++){
+			if((AMcantab+i)->AMfd==fileDesc) return AMESCANOPEN;
+	}
+	*/
+
+	
+	/*deletion */
+	/* a file can be deleted only if it is at then end of the table in order to have static file descriptor */
+	/* In any case the boolean valid is set to false to precise that this file is closed */
+        pt->valid==FALSE;
+	if(fileDesc==(AMitab_length-1)){ /* it is the last file of the table */ 
+		AMitab_length--;
+
+		if(AMitab_length >0){
+			AMitab_length--;
+			while (AMitab_length>0 &&  ((AMitab+ AMitab_length-1)->valid==FALSE)){
+				AMitab_length--; /* delete all the closed file, which are the end of the table */
+			}
+		}
+	}
+	
+
 	return AME_OK;
 }
 
