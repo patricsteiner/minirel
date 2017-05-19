@@ -15,7 +15,9 @@
 #include "../am/amUtils.h"
 
 AMitab_ele *AMitab;
+AMscantab_ele *AMscantab;
 size_t AMitab_length;
+size_t AMscantab_length;
 
 /* 
  *
@@ -123,10 +125,64 @@ int AM_DeleteEntry(int fileDesc, char *value, RECID recId){
 	return AME_OK;
 }
 
-int AM_OpenIndexScan(int fileDesc, int op, char *value){
-	return AME_OK;
+
+/*
+ *    int     AM_fd,               file descriptor                 
+ *    int     op,                  operator for comparison         
+ *    char    *value               value for comparison (or null)  
+ *
+ * This function opens an index scan over the index represented by the file associated with AM_fd.
+ * The value parameter will point to a (binary) value that the indexed attribute values are to be
+ * compared with. The scan will return the record ids of those records whose indexed attribute 
+ * value matches the value parameter in the desired way. If value is a null pointer, then a scan 
+ * of the entire index is desired. The scan descriptor returned is an index into the index scan 
+ * table (similar to the one used to implement file scans in the HF layer). If the index scan table
+ * is full, an AM error code is returned in place of a scan descriptor.
+ *
+ * The op parameter can assume the following values (as defined in the minirel.h file provided).
+ *
+ *    #define EQ_OP           1
+ *    #define LT_OP           2
+ *    #define GT_OP           3
+ *    #define LE_OP           4
+ *    #define GE_OP           5
+ *    #define NE_OP           6
+ *
+ */
+int AM_OpenIndexScan(int AM_fd, int op, char *value){
+	AMitab_ele* amitab_ele;
+	AMscantab_ele* amscantab_ele;
+	
+	if (AM_fd < 0 || AM_fd >= AMitab_length) return AME_FD;
+	if (op < 1 || op > 6) return AME_INVALIDOP;
+	if (AMscantab_length >= AM_ITAB_SIZE) return AME_SCANTABLEFULL;
+
+	amitab_ele = AMitab + AM_fd;
+	
+	if (amitab_ele->valid != TRUE) return AME_INDEXNOTOPEN;
+	
+	amscantab_ele = AMscantab + AMscantab_length;
+	
+	/* copy the values */
+	memcpy((char*) amscantab_ele->value, (char*) value, amitab_ele->header.attrLength);
+	amscantab_ele->op = op;
+	amscantab_ele->current = amitab_ele->racine_page; /* always start at the root */
+	amscantab_ele->AMfd = AM_fd;
+	amscantab_ele->valid = TRUE;
+	
+	return AMscantab_length++;
 }
 
+     
+
+/* 
+ * int     scanDesc;           scan descriptor of an index
+ *
+ * This function returns the record id of the next record that satisfies the conditions specified for an
+ * index scan associated with scanDesc. If there are no more records satisfying the scan predicate, then an
+ * invalid RECID is returned and the global variable AMerrno is set to AME_EOF. Other types of errors are
+ * returned in the same way.
+ */
 RECID AM_FindNextEntry(int scanDesc){
 	RECID res;
 	res.recnum = 0;
@@ -135,7 +191,29 @@ RECID AM_FindNextEntry(int scanDesc){
 	return res;
 }
 
-int AM_CloseIndexScan(int scanDesc){
+/*
+ *   int     scanDesc;           scan descriptor of an index
+ *
+ * This function terminates an index scan and disposes of the scan state information. It returns AME_OK 
+ * if the scan is successfully closed, and an AM error code otherwise.
+ */
+int AM_CloseIndexScan(int scanDesc) {
+	AMscantab_ele* amscantab_ele;
+
+	if (scanDesc < 0 ||  (scanDesc >= AMscantab_length && AMscantab_length !=0)) return AME_INVALIDSCANDESC;
+
+	amscantab_ele = AMscantab + scanDesc;
+
+	if (amscantab_ele->valid == FALSE) return AME_SCANNOTOPEN; 
+
+	/* done similar to the closeScan in HF. is this procedure not needed? */
+	if (scanDesc == AMscantab_length - 1) { /* if last scan in the table */
+		if (AMscantab_length > 0) AMscantab_length--;
+		while( ((AMscantab + AMscantab_length - 1)->valid == FALSE) && (AMscantab_length > 0)) {
+			AMscantab_length--; /* delete all following scan with valid == FALSE */
+		}
+	}
+
 	return AME_OK;
 }
 
