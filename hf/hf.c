@@ -349,7 +349,7 @@ int	HF_CloseFile(int hffd){
 		/* write the header  */
 		memcpy((char*) pagebuf,(int*) &pt->header.rec_size, sizeof(int));
 		memcpy((char*) (pagebuf+4),(int*) &pt->header.rec_page, sizeof(int));
-		memcpy((char*) (pagebuf+8),(int*) &pt->header.num_pages, sizeof(int));    
+		memcpy((char*) (pagebuf+8),(int*) &pt->header.num_pages, sizeof(int)); 
 		memcpy((char*) (pagebuf+12),(int*) &pt->header.num_free_pages , sizeof(int));
 		memcpy((char*) (pagebuf + 16),(char*) &pt->header.pageDirectory, PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char));
 
@@ -382,7 +382,7 @@ int	HF_CloseFile(int hffd){
 
 		if(HFftab_length >0){
 			HFftab_length--;
-			while (((HFftab+ HFftab_length-1)->valid==FALSE)&& HFftab_length>0){
+			while (HFftab_length>0 &&  ((HFftab+ HFftab_length-1)->valid==FALSE)){
 				HFftab_length--; /* delete all the closed file, which are the end of the table */
 			}
 		}
@@ -464,7 +464,7 @@ RECID HF_InsertRec(int fileDesc, char *record){
 		memcpy(( char*) ( datapagebuf + bitmap_size + sizeof(int) ), record, (pt->header.rec_size)); 
 
 		pt->header.num_free_pages ++;
-		pt->header.num_pages ++;
+		(pt->header.num_pages) ++; printf( "\n\n\n\n hhhhhhhhhhhhhhhhhhhhhhhhhh num_pages, record inserted %d %s \n\n\n\n",pt->header.num_pages, record);
 		pt->header.pageDirectory[pt->header.num_pages - 3] = 0;
 		pt->dirty = TRUE;
 		/* printf("\nNEW DATA PAGE ALLOCATED, now %d datapages\n", pt->header.num_pages -2);
@@ -521,7 +521,7 @@ RECID HF_InsertRec(int fileDesc, char *record){
 		if(N == pt->header.rec_page){
 			pt->header.pageDirectory[pagenum-2] = 1;
 			pt->header.num_free_pages --;
-			pt->dirty = FALSE;
+			pt->dirty = TRUE;
 			/*printPageDirectory(pt);
 			printf("num free pages : %d\n", pt->header.num_free_pages); */
 		}
@@ -558,7 +558,7 @@ RECID HF_InsertRec(int fileDesc, char *record){
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
 	}
-
+	/********HF_PrintDataPage(datapagebuf,pt); */
 	res.recnum = recnum;
 	res.pagenum = pagenum;
 	return res;
@@ -593,7 +593,7 @@ int	HF_DeleteRec(int fileDesc, RECID recId){
 	if(N == pt->header.rec_page){
 		pt->header.num_free_pages ++;
 		pt->header.pageDirectory[recId.pagenum-2] = 0;
-		pt->dirty = FALSE;
+		pt->dirty = TRUE;
 	}
 	N--;
 
@@ -601,7 +601,8 @@ int	HF_DeleteRec(int fileDesc, RECID recId){
 	/*
 	HF_PrintDataPage(datapagebuf, pt);
 	*/
-
+	
+	
 	error = PF_UnpinPage(pt->fd, recId.pagenum, 1);
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
@@ -626,7 +627,9 @@ RECID HF_GetFirstRec(int fileDesc, char *record) {
 	r.pagenum = 2;
 	r.recnum = 0;
 	if ((error = HF_GetThisRec(fileDesc, r, record)) != HFE_OK) {
-		HF_ErrorHandler(error);
+		r.recnum=error;
+		r.pagenum=error;
+		return r;
 	}
 	return r;
 }
@@ -644,32 +647,84 @@ RECID HF_GetNextRec(int fileDesc, RECID recId, char *record) {
 		- check if valid record
 		- increment recnum
 		- if recId.recnum the last record: set recnum to 0 and increment pagenum
-		- call HF_GetThisRec
+		-call HF_GetThisRec
 	*/
 	int error;
 	HFftab_ele* hfftab_ele;
+	char* pagebuf;
+	char bit;
+	size_t bytes_in_bitmap;
 
+	
+
+	/* parameter checking */
+	if(fileDesc >= HF_FTAB_SIZE || fileDesc<0) {
+			recId.recnum= HFE_FD;
+			recId.pagenum=HFE_FD;
+			return recId;
+	}
+	/*initialization */
+	
 	hfftab_ele = HFftab + fileDesc;
 
-	/* not checking if valid, because input record may be deleted and in this case
-	 we still want to continue! validity is checked in GetThisRec. */
-	/*if (HF_ValidRecId(fileDesc, recId) != TRUE) {
-		HF_ErrorHandler(HFE_INVALIDRECORD);
-	}*/
-
+	bytes_in_bitmap = HF_GetBytesInBitmap(hfftab_ele->header.rec_page);
+	if( recId.recnum>(hfftab_ele->header.rec_page-1) || recId.recnum<0 ||recId.pagenum>= hfftab_ele->header.num_pages || recId.pagenum<2){
+	                recId.recnum= HFE_INVALIDRECORD;
+			recId.pagenum=HFE_INVALIDRECORD;
+			return recId;
+	}
+	
+	/*go to the next record */
 	recId.recnum++;
 	if (recId.recnum >= hfftab_ele->header.rec_page) {
+
+		if(recId.pagenum >= (hfftab_ele->header.num_pages) ){ /*no more record in the file*/
+				recId.recnum = HFE_EOF;
+				recId.pagenum = HFE_EOF;
+				return recId;
+
+		}
 		recId.recnum = 0;
 		recId.pagenum++;
 	}
-	if (HF_ValidRecId(fileDesc, recId) != TRUE) {
-		/* no error handler! */
-		recId.recnum = -2; /* -1 = TRUE,make sure record is invalid so while loop is ended */
+	error = PF_GetThisPage(hfftab_ele->fd, recId.pagenum, &pagebuf);
+	if (error != PFE_OK) PF_ErrorHandler(error);
+
+	while(1){
+	
+		
+		if (recId.recnum >= hfftab_ele->header.rec_page) {/* empty slot go to next one */
+			/* if last slot of the file, return error*/
+			if(recId.pagenum >= (hfftab_ele->header.num_pages-1)){
+				/*unpin the current page and return */
+				error = PF_UnpinPage(hfftab_ele->fd, recId.pagenum, 0);
+				if(error != PFE_OK) PF_ErrorHandler(error);
+				recId.recnum = HFE_EOF;
+				recId.pagenum = HFE_EOF;
+				
+				return recId;
+
+			}
+			/* otherwise go to first slot of next page, by unpinning the current and get the next */
+			recId.recnum = 0;
+			recId.pagenum++;
+			error = PF_GetThisPage(hfftab_ele->fd, recId.pagenum, &pagebuf);
+			if (error != PFE_OK) PF_ErrorHandler(error);
+		}
+		bit = (pagebuf[recId.recnum/8] & (int) pow(2,(recId.recnum%8)) ) >> (recId.recnum%8);
+		
+		if ( bit!=1){
+			/* no record at this number ==> go to next one*/
+			recId.recnum++;
+			continue;
+		} 
+		memcpy((char*) record, (char*) (pagebuf + bytes_in_bitmap + sizeof(int) + hfftab_ele->header.rec_size * recId.recnum), hfftab_ele->header.rec_size);
+
+		error = PF_UnpinPage(hfftab_ele->fd, recId.pagenum, 0);
+		if(error != PFE_OK) PF_ErrorHandler(error);
+
 		return recId;
 	}
-
-	HF_GetThisRec(fileDesc, recId, record);
-	return recId;
 }
 
 /*
@@ -695,25 +750,35 @@ int	HF_GetThisRec(int fileDesc, RECID recId, char *record){
 	size_t bytes_in_bitmap;
 	char* pagebuf;
 	
+
+	
+	
+	/* parameter checking */
 	if (record == NULL) {
-		HF_ErrorHandler(HFE_WRONGPARAMETER);
-	}
-	/*
-	printf("fd: %d\n", fileDesc);
-	printf("rid.pagenum: %d\n", recId.pagenum);
-	printf("rid.recnum: %d\n", recId.recnum);
-	*/
-	/*HF_PrintTable();*/
-	if (HF_ValidRecId(fileDesc, recId) != TRUE) {
-		HF_ErrorHandler(HFE_INVALIDRECORD);
+		return HFE_WRONGPARAMETER;
 	}
 
+	if(fileDesc >= HF_FTAB_SIZE || fileDesc<0) return HFE_FD;
+	/*initialization */
+	
 	hfftab_ele = HFftab + fileDesc;
+	bytes_in_bitmap = HF_GetBytesInBitmap(hfftab_ele->header.rec_page);
+
+	if( recId.recnum>(hfftab_ele->header.rec_page-1) || recId.recnum<0 ||recId.pagenum>= hfftab_ele->header.num_pages || recId.pagenum<2){
+	                return HFE_INVALIDRECORD;
+	}
+	
+
+	if (HF_ValidRecId(fileDesc, recId) != TRUE) {
+		return HFE_INVALIDRECORD;
+	}
+
+
 
 	error = PF_GetThisPage(hfftab_ele->fd, recId.pagenum, &pagebuf);
 	if (error != PFE_OK) PF_ErrorHandler(error);
 
-	bytes_in_bitmap = HF_GetBytesInBitmap(hfftab_ele->header.rec_page);
+	
 
 	/*printf("\nDEBUG: rec_page: %d\n", hfftab_ele->header.rec_page);
 	printf("\nDEBUG: rec_size: %d\n", hfftab_ele->header.rec_size);
@@ -726,7 +791,7 @@ int	HF_GetThisRec(int fileDesc, RECID recId, char *record){
 	/* add sizeof(int) to offset because a page has bitmap first, then an int to indicate number of slots */
 	memcpy((char*) record, (char*) (pagebuf + bytes_in_bitmap + sizeof(int) + hfftab_ele->header.rec_size * recId.recnum), hfftab_ele->header.rec_size);
 
-	error = PF_UnpinPage(hfftab_ele->fd, recId.pagenum, 1);
+	error = PF_UnpinPage(hfftab_ele->fd, recId.pagenum, 0);
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
 	}
@@ -768,9 +833,7 @@ int HF_OpenFileScan(int hffd, char attrType, int attrLength, int attrOffset, int
 	pt->attrLength=attrLength;
 	pt->attrOffset=attrOffset;
 	pt->op=op;
-	printf( "cast %f \n", *( (float*)value ) );
 	memcpy( (char*) pt->value, (char*)value, attrLength);
-	printf( "cast2 %f \n", *( (float*)pt->value ) ); 
 	pt->current.recnum=0;
 	pt->current.pagenum=2;
 	pt->HFfd=hffd;
@@ -803,7 +866,7 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 	char *recordbuff;
 	
 	/* initialisation*/
-	
+	comp=-1; 
 
 	
 
@@ -837,19 +900,40 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 
 	error=PF_GetThisPage(ptfile->fd, pagenum, &pagebuf);
 	if(error!=PFE_OK) PF_ErrorHandler(error);
-	HF_PrintDataPage(pagebuf, ptfile);
+	
 	/* for the buffer of the record fiel being compared */
 	offrecord=malloc( ptscan->attrLength);
 	
 	
 	while(1){
+		if(pagenum >= (ptfile->header.num_pages-1) && recnum >= (ptfile->header.rec_page-1)){
+			error = PF_UnpinPage(ptfile->fd, pagenum, 0);
+			if(error != PFE_OK) PF_ErrorHandler(error);
+			
+			res.recnum = HFE_EOF;
+			res.pagenum = HFE_EOF;
+			return res;
+
+		}
+		
+		if( recnum >= ((ptfile->header.rec_page)-1)){
+			error = PF_UnpinPage(ptfile->fd, pagenum, 0);
+			if(error != PFE_OK) PF_ErrorHandler(error);
+			
+			error=PF_GetNextPage(ptfile->fd,&pagenum,&pagebuf);
+			if(error!=PFE_OK) PF_ErrorHandler(error);
+			recnum=0;
+		}  
+
+		recnum++;
 	
 		/* check if record is really a full slot with bitmap*/
 		
 		bit = (pagebuf[recnum/8] & (int) pow(2,(recnum%8)) ) >> (recnum%8);
-		printf( "le bit %d \n", bit);
+		
 		if ( bit!=1){
 			/* no record at this number ==> go to next one*/
+			
 			recnum++;
 			continue;
 		} 
@@ -857,23 +941,23 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 		/*get this record and do the comparison */
 		memcpy((char*) record,(char*) (pagebuf+bitmap_size+ sizeof(int) + recnum*(ptfile->header.rec_size) ) ,  (ptfile->header.rec_size));
 		
-		/* comparison step: -apply offset
+		/* comparison steps: -apply offset
 				    -switch case op
 				    -comparison with value for string with strcomp
 				    -comparison with  for int or float with classic operatior (< > = ) */
 		/* use strncmp for int and string to save computations, does not work for float */
-		printf("pagenum %d \n", pagenum);
+		
 		if(ptscan->attrType !='f') memcpy(offrecord, (char*) (pagebuf+bitmap_size + sizeof(int) + recnum * ptfile->header.rec_size), ptfile->header.rec_size);
 		else memcpy((float*) &f, (char*) record+(ptscan->attrOffset), ptscan->attrLength);
 		
-		printf(" record %s \n " , record);
-		printf(" offrecord %s \n " , offrecord);
-		printf( "cast2 %f \n", *( (float*)ptscan->value ) ); 
-		printf("f %f \n", f);
+		
+	
 		if ( ptscan->attrType !='f') comp=strncmp((char*)offrecord, (char*) ptscan->value, ptscan->attrLength+1);
-		printf("comp %d \n", comp);
+  
+		
 		switch(ptscan->op) {
 			case 1: 
+				
 				if ( (ptscan->attrType == 'f' && f==*((float*)ptscan->value)) || comp==0 ){
 					/*matching record is found, udpate the scan table element and then return */
 					ptscan->current.recnum=recnum;
@@ -881,6 +965,9 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 					res.recnum=recnum ;
 					res.pagenum=pagenum;
 					free(offrecord);
+					error = PF_UnpinPage(ptfile->fd, pagenum, 0);
+					if(error != PFE_OK) PF_ErrorHandler(error);
+			
 					return res; /* copy of the record is already in the parameter, now the recid is returned*/
 					}
 
@@ -893,30 +980,75 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 					res.recnum=recnum ;
 					res.pagenum=pagenum;
 					free(offrecord);
+					error = PF_UnpinPage(ptfile->fd, pagenum, 0);
+					if(error != PFE_OK) PF_ErrorHandler(error);
+			
 					return res; /* copy of the record is already in the parameter, now the recid is returned*/
 					}
 				break;
 			case 3:
-				if ( (ptscan->attrType=='f' && f>*((float*)ptscan->value)) || comp>0 ){
-					/*matching record is found, udpate the scan table element and then return */
-					ptscan->current.recnum=recnum;
-					ptscan->current.pagenum=pagenum;
-					res.recnum=recnum ;
-					res.pagenum=pagenum;
-					free(offrecord);
-					return res; /* copy of the record is already in the parameter, now the recid is returned*/
-					}
+				/* comp initialized as negative , as to separate case where the attribute is of type float otherwise the predicat is always true*/
+				if(ptscan->attrType == 'f'){
+				
+					if (  f<=*((float*)ptscan->value)  ){
+						/*matching record is found, udpate the scan table element and then return */
+						ptscan->current.recnum=recnum;
+						ptscan->current.pagenum=pagenum;
+						res.recnum=recnum ;
+						res.pagenum=pagenum;
+						free(offrecord);
+						error = PF_UnpinPage(ptfile->fd, pagenum, 0);
+						if(error != PFE_OK) PF_ErrorHandler(error);
+			
+						return res; /* copy of the record is already in the parameter, now the recid is returned*/
+						}
+				}
+				else{
+					if (   comp<=0 ){
+						/*matching record is found, udpate the scan table element and then return */
+						ptscan->current.recnum=recnum;
+						ptscan->current.pagenum=pagenum;
+						res.recnum=recnum ;
+						res.pagenum=pagenum;
+						free(offrecord);
+						error = PF_UnpinPage(ptfile->fd, pagenum, 0);
+						if(error != PFE_OK) PF_ErrorHandler(error);
+			
+						return res; /* copy of the record is already in the parameter, now the recid is returned*/
+						}
+				}
+					
 				break;
 			case 4: 
-				if ( (ptscan->attrType == 'f' && f<=*((float*)ptscan->value)) || comp<=0 ){
-					/*matching record is found, udpate the scan table element and then return */
-					ptscan->current.recnum=recnum;
-					ptscan->current.pagenum=pagenum;
-					res.recnum=recnum ;
-					res.pagenum=pagenum;
-					free(offrecord);
-					return res; /* copy of the record is already in the parameter, now the recid is returned*/
-					}
+				/* comp initialized as negative , as to separate case where the attribute is of type float otherwise the predicat is always true*/
+				if(ptscan->attrType == 'f'){
+				
+					if (  f<=*((float*)ptscan->value) ){
+						/*matching record is found, udpate the scan table element and then return */
+						ptscan->current.recnum=recnum;
+						ptscan->current.pagenum=pagenum;
+						res.recnum=recnum ;
+						res.pagenum=pagenum;
+						free(offrecord);
+						error = PF_UnpinPage(ptfile->fd, pagenum, 0);
+						if(error != PFE_OK) PF_ErrorHandler(error);
+			
+						return res; /* copy of the record is already in the parameter, now the recid is returned*/
+				}		}
+				else{
+					if (   comp<=0 ){
+						/*matching record is found, udpate the scan table element and then return */
+						ptscan->current.recnum=recnum;
+						ptscan->current.pagenum=pagenum;
+						res.recnum=recnum ;
+						res.pagenum=pagenum;
+						free(offrecord);
+						error = PF_UnpinPage(ptfile->fd, pagenum, 0);
+						if(error != PFE_OK) PF_ErrorHandler(error);
+			
+						return res; /* copy of the record is already in the parameter, now the recid is returned*/
+						}
+				}	
 				break;
 			case 5: 
 				if ( (ptscan->attrType == 'f' && f>=*((float*)ptscan->value)) || comp>=0 ){
@@ -926,6 +1058,9 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 					res.recnum=recnum ;
 					res.pagenum=pagenum;
 					free(offrecord);
+					error = PF_UnpinPage(ptfile->fd, pagenum, 0);
+					if(error != PFE_OK) PF_ErrorHandler(error);
+			
 					return res; /* copy of the record is already in the parameter, now the recid is returned*/
 					}
 				break;
@@ -937,6 +1072,9 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 					res.recnum=recnum ;
 					res.pagenum=pagenum;
 					free(offrecord);
+					error = PF_UnpinPage(ptfile->fd, pagenum, 0);
+					if(error != PFE_OK) PF_ErrorHandler(error);
+			
 					return res; /* copy of the record is already in the parameter, now the recid is returned*/
 					}
 				break;
@@ -944,24 +1082,15 @@ RECID HF_FindNextRec(int scanDesc, char *record){
 				free(offrecord);
 				res.recnum = HFE_OPERATOR;
 				res.pagenum = HFE_OPERATOR;
+				error = PF_UnpinPage(ptfile->fd, pagenum, 0);
+				if(error != PFE_OK) PF_ErrorHandler(error);
+			
 				return res;
+				break;
 			}
 
 	
-		/*last record of the file */
-		if(pagenum >= /*(ptfile->header.num_pages-1)*/2 && recnum >= (ptfile->header.rec_page-1)){
-			res.recnum = HFE_EOF;
-			res.pagenum = HFE_EOF;
-			return res;
-
-		}
-		/*last record of the page 
-		if( recnum >= (ptfile->header.rec_page)-1){
-			error=PF_GetNextPage(ptfile->fd,&pagenum,&pagebuf);
-			if(error!=PFE_OK) PF_ErrorHandler(error);
-		}    
-		*/
-		recnum++;
+		
 
 
 	}
@@ -1016,16 +1145,17 @@ bool_t HF_ValidRecId(int fileDesc, RECID recid){
 	int bitmap_size, error, bit;
 	char byte;
 
-	if(fileDesc >= HF_FTAB_SIZE) return FALSE;
+	if(fileDesc >= HF_FTAB_SIZE || fileDesc<0) return FALSE;
 	pt = HFftab + fileDesc;
 
 	if(pt->valid == FALSE) return FALSE;
 
-	if(recid.pagenum < 2 | recid.pagenum > pt->header.num_pages){
-		printf("Invalid pagenum number\n");
+	if(recid.pagenum < 2 || recid.pagenum > pt->header.num_pages){
+		/*printf(" pagenum , num pages dans valid %d, %d\n", recid.pagenum, pt->header.num_pages);
+		printf("Invalid pagenum number\n");*/
 		return FALSE;
 	}
-	if(recid.recnum < 0 | recid.recnum > pt->header.rec_page){
+	if(recid.recnum < 0 || recid.recnum > pt->header.rec_page){
 		return FALSE;
 	}
 	bitmap_size = (pt->header.rec_page%8)==0 ?(pt->header.rec_page / 8): (pt->header.rec_page/8)+1;
@@ -1036,8 +1166,8 @@ bool_t HF_ValidRecId(int fileDesc, RECID recid){
 
 	byte = datapagebuf[recid.recnum/8];
 	bit = (byte & (int) pow(2, recid.recnum%8)) >> recid.recnum%8;
-
-	error = PF_UnpinPage(pt->fd, recid.pagenum, 1);
+ 	
+	error = PF_UnpinPage(pt->fd, recid.pagenum, 0);
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
 	}

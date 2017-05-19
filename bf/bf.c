@@ -255,7 +255,7 @@ int BF_UnpinBuf(BFreq bq){
 	if (ht_entry == NULL) return BFE_HASHNOTFOUND; 
 
 	/* page not pinned */
-	if(ht_entry->bpage->count<1)return BFE_UNPINNEDPAGE;
+	if(ht_entry->bpage->count<1){ printf( "count %d \n" ,ht_entry->bpage->count); return BFE_UNPINNEDPAGE;}
 
 	/* the pin is decreased by one */
 	ht_entry->bpage->count = ht_entry->bpage->count - 1;
@@ -282,7 +282,7 @@ int BF_TouchBuf(BFreq bq){
 
     /* page has to be pinned */
     if(ht_entry == NULL) return BFE_HASHNOTFOUND;
-    if(ht_entry->bpage->count < 1) return BFE_UNPINNEDPAGE; 
+    if(ht_entry->bpage->count < 1) { printf( "le count %d  \n", ht_entry->bpage->count); return BFE_UNPINNEDPAGE; }
     
     /* page is marked as dirty */
     ht_entry->bpage->dirty = TRUE;  
@@ -317,7 +317,7 @@ int BF_FlushBuf(int fd){
 			*	
 			*/
 			if(pt->count != 0){ /* The page is still in use, impossible to remoe the file */
- 				return  BFE_PINNEDPAGE;
+ 				return  BFE_PINNEDPAGE; 
 			}
 			else{
 				if (pt != lru->head){
