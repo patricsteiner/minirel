@@ -69,6 +69,9 @@ The bitmap size is always a multiple of 8, since we do not have any datatype tha
 To calculate the size (amount of bytes) of the bitmap, we need to know the number of records that are stored in a datapage.
 Then we simply divide this number by 8 and add 1 if there is a remainder. `int HF_GetBytesInBitmap(int records_per_page)` can be used for this.
 
+### Finding records (scanning a heap file)
+To find records that match a specific condition, a filescan must be initiated by calling `int HF_OpenFileScan(int hffd, char attrType, int attrLength, int attrOffset, int op, char *value)`. This function will create a new entry in the scantable. After setting up a scan, it can be executed by calling `RECID HF_FindNextRec(int scanDesc, char *record)`, which just iterates through the records looking for items that match the condition that has been set in the filescan. After finding the results, when the filescan is not needed anymore, it must be closed with the function `int	HF_CloseFileScan(int scanDesc)`.
+
 ## Access Method Layer
 TODO
 
