@@ -228,17 +228,20 @@ int HF_CreateFile(char *filename, int RecSize){
 
 	/* the page is dirty now ==> last arg of PF_UnpinPage ("dirty") set to one */
 
+	pt->valid = FALSE;
+
 	error = PF_UnpinPage(pt->fd, *pagenum, 1);
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
 	}
 
+	/*
 	printf("close file\n \n");
+	*/
 	error = PF_CloseFile(pt->fd);
 	if(error != PFE_OK){
 		PF_ErrorHandler(error);
 	}
-	
 	HFftab_length--;
 
 	return HFE_OK;
@@ -301,7 +304,10 @@ int HF_OpenFile(char *filename){
 	memcpy((int*) &pt->header.num_pages, (char*) (pagebuf + 8), sizeof(int));
 	memcpy((int*) &pt->header.num_free_pages, (char*) (pagebuf + 12), sizeof(int));
 	memcpy((char*) &pt->header.pageDirectory, (char*) (pagebuf + 16), PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char)); 
+	
+	/* 
 	printf("Entry added to HF Table : %d, %d, %d, %d\n", pt->header.rec_size, pt->header.rec_page, pt->header.num_pages, pt->header.num_free_pages);
+	*/
 	/* need also to fill the header directory (to know where are the free pages) */
 
 	HFftab_length ++;
@@ -1193,7 +1199,7 @@ void HF_PrintTable(void){
 	printf("\n\n******** HF Table ********\n");
 	printf("******* Length : %d *******\n",(int) HFftab_length);
 	for(i=0; i<HFftab_length; i++){
-		printf("**** %d : %s : %d freepages\n", (int)i, HFftab[i].fname, HFftab[i].header.num_free_pages);
+		printf("**** %d : %s : %d freepages : %d valid\n", (int)i, HFftab[i].fname, HFftab[i].header.num_free_pages, HFftab[i].valid);
 	}
 	printf("**************************\n\n");
 

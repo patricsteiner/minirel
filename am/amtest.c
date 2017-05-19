@@ -27,6 +27,7 @@ void amtest2(void);
 void amtest3(void);
 void cleanup(void);
 
+int AMerrno; /*ADDED BY ANTOINE FOR COMPLILING */
 /* array of pointers to all of the test functions (used by main) */
 
 void (*tests[])() = {amtest1, amtest2, amtest3, cleanup};
