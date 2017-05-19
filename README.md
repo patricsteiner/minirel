@@ -70,7 +70,7 @@ To calculate the size (amount of bytes) of the bitmap, we need to know the numbe
 Then we simply divide this number by 8 and add 1 if there is a remainder. `int HF_GetBytesInBitmap(int records_per_page)` can be used for this.
 
 ### Finding records (scanning a heap file)
-To find records that match a specific condition, a filescan must be initiated by calling `int HF_OpenFileScan(int hffd, char attrType, int attrLength, int attrOffset, int op, char *value)`. This function will create a new entry in the scantable. After setting up a scan, it can be executed by calling `RECID HF_FindNextRec(int scanDesc, char *record)`, which just iterates through the records looking for items that match the condition that has been set in the filescan. After finding the results, when the filescan is not needed anymore, it must be closed with the function `int	HF_CloseFileScan(int scanDesc)`.
+To find records that match a specific condition, a filescan must be initiated by calling `int HF_OpenFileScan(int hffd, char attrType, int attrLength, int attrOffset, int op, char *value)`. This function will create a new entry in the scantable that keeps track of the position of the currently scanned record as well as all relevant data to the scan, such as heapfile descriptor, comparison attributes and a flag that indicates if the scan is currently running. After setting up a scan, it can be executed by calling `RECID HF_FindNextRec(int scanDesc, char *record)`, which just iterates through the records looking for items that match the condition that has been set in the filescan. After finding the results, when the filescan is not needed anymore, it must be closed with the function `int	HF_CloseFileScan(int scanDesc)`.
 
 ## Access Method Layer
 TODO
