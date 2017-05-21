@@ -19,6 +19,42 @@ AMscantab_ele *AMscantab;
 size_t AMitab_length;
 size_t AMscantab_length;
 
+bool_t compareInt(int a, int b, int op) {
+	switch (op) {
+		case EQ_OP: return a == b;
+		case LT_OP: return a < b;
+		case GT_OP: return a > b;
+		case LE_OP: return a <= b;
+		case GE_OP: return a >= b;
+		case NE_OP: return a != b;
+		default: return FALSE;
+	}
+}
+
+bool_t compareFloat(float a, float b, int op) {
+	switch (op) {
+		case EQ_OP: return a == b;
+		case LT_OP: return a < b;
+		case GT_OP: return a > b;
+		case LE_OP: return a <= b;
+		case GE_OP: return a >= b;
+		case NE_OP: return a != b;
+		default: return FALSE;
+	}
+}
+
+bool_t compareChars(char* a, char* b, int op, int len) {
+	switch (op) {
+		case EQ_OP: return strncmp(a, b, len) == 0;
+		case LT_OP: return strncmp(a, b, len) < 0;
+		case GT_OP: return strncmp(a, b, len) > 0;
+		case LE_OP: return strncmp(a, b, len) <= 0;
+		case GE_OP: return strncmp(a, b, len) >= 0;
+		case NE_OP: return strncmp(a, b, len) != 0;
+		default: return FALSE;
+	}
+}
+
 /* 
  *
  */
@@ -204,7 +240,7 @@ RECID AM_FindNextEntry(int scanDesc) {
 	float f;
 	int i;
 	char c[255];
-	
+
 	/*cmp_prev = -1;*/
 
 
@@ -253,13 +289,40 @@ RECID AM_FindNextEntry(int scanDesc) {
 		memcpy((Node*) &node, (char*) (pagebuf), sizeof(Node));
 	}
 
-	
+	while (node.next_leaf != 0) {
+		key = 0;
+		/* in every node that is visited, compare with each key until match is found */
+		while (key++ < node.num_keys) {
+			offset = sizeof(Node) + key * (amitab_ele->header.attrLength + sizeof(int));
+			/* read the pagenumber (node) */
+			memcpy((page*) &page, (char*) (pagebuf + offset) + amitab_ele->header.attrLength, sizeof(int));
+			if (amitab_ele->header.attrType == 'i') {
+				/* read the key (attr) */
+				memcpy((int*) &i, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
+				cmp = compareInt(i, amscantab_ele->value, amscantab_ele->op);
+			}
+			else if (amitab_ele->header.attrType == 'f') {
+				memcpy((float*) &f, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
+				cmp = compareFloat(f, amscantab_ele->value, amscantab_ele->op);
+			}
+			else if (amitab_ele->header.attrType == 'c') {
+				memcpy((float*) &c, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
+				cmp = compareChars(c, amscantab_ele->value, amscantab_ele->op, amitab_ele->header.attrLength);
+			}
+			if (cmp == 0) {
+				/* it's a match, return the recid! */
+				recid.recnum = -150;
+				recid.pagenum = -150;
+				return recid;
+			}		
+		}
+	}
 
 	error = PF_UnpinPage(amitab_ele->fd, amscantab_ele->current, 0);
 	if(error != PFE_OK) PF_ErrorHandler(error);
 
-	recid.recnum = 0;
-	recid.pagenum = 0;
+	recid.recnum = -150;
+	recid.pagenum = -150;
 
 	return recid;
 }
