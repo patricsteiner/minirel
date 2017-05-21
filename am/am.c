@@ -148,6 +148,7 @@ int AM_DeleteEntry(int fileDesc, char *value, RECID recId){
  *    #define GE_OP           5
  *    #define NE_OP           6
  *
+ * Dev: Patric
  */
 int AM_OpenIndexScan(int AM_fd, int op, char *value){
 	AMitab_ele* amitab_ele;
@@ -182,13 +183,85 @@ int AM_OpenIndexScan(int AM_fd, int op, char *value){
  * index scan associated with scanDesc. If there are no more records satisfying the scan predicate, then an
  * invalid RECID is returned and the global variable AMerrno is set to AME_EOF. Other types of errors are
  * returned in the same way.
+ *
+ * Dev: Patric
  */
-RECID AM_FindNextEntry(int scanDesc){
-	RECID res;
-	res.recnum = 0;
-	res.pagenum = 0;
+RECID AM_FindNextEntry(int scanDesc) {
+	/* Procedure:
+		- read current node, compare keys with value
+		- compare value and key, go to the right next node
+		- repeat until a leaf is reached
+		- if value matches: update the current node of the scan and return the RECID
+		- if no match: update the current node of the scan and return EOF
+	*/
 
-	return res;
+	RECID recid;
+	AMitab_ele* amitab_ele;
+	AMscantab_ele* amscantab_ele;
+	char* pagebuf;
+	Node node;
+	int error, key, cmp, cmp_prev, page, offset;
+	float f;
+	int i;
+	char c[255];
+	
+	/*cmp_prev = -1;*/
+
+
+	amitab_ele = AMitab + AM_fd;
+	if (amitab_ele->valid != TRUE) return AME_INDEXNOTOPEN;
+	if (scanDesc < 0 ||  (scanDesc >= AMscantab_length && AMscantab_length !=0)) return AME_INVALIDSCANDESC;
+	amscantab_ele = AMscantab + scanDesc;
+	if (amscantab_ele->valid == FALSE) return AME_SCANNOTOPEN; 
+
+	/* read the current node */
+	error = PF_GetThisPage(amitab_ele->fd, amscantab_ele->current, &pagebuf);
+	if(error != PFE_OK) PF_ErrorHandler(error);	
+	memcpy((Node*) &node, (char*) (pagebuf), sizeof(Node));
+
+	/* go down the tree until a leaf is reached */
+	while (!node.is_leaf) {
+		/* key = 0;
+		/* in every node that is visited, compare with each key until match is found 
+		while (key++ < node.num_keys) {
+			offset = sizeof(Node) + key * (amitab_ele->header.attrLength + sizeof(int));
+			/* read the pagenumber (node) 
+			memcpy((page*) &page, (char*) (pagebuf + offset) + amitab_ele->header.attrLength, sizeof(int));
+			if (amitab_ele->header.attrType == 'i') {
+				/* read the key (attr) 
+				memcpy((int*) &i, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
+				cmp = compareInt(i, amscantab_ele->value, amscantab_ele->op);
+			}
+			else if (amitab_ele->header.attrType == 'f') {
+				memcpy((float*) &f, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
+				cmp = compareFloat(f, amscantab_ele->value, amscantab_ele->op);
+			}
+			else if (amitab_ele->header.attrType == 'c') {
+				memcpy((float*) &c, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
+				cmp = compareChars(c, amscantab_ele->value, amscantab_ele->op, amitab_ele->header.attrLength);
+			}
+			if (cmp == 0) {
+				
+			}			
+		}*/
+
+		/* update the current node and read it */
+		memcpy((page*) &page, (char*) (pagebuf + sizeof(Node) + amitab_ele->header.attrLength), sizeof(int));
+		amscantab_ele->current = page;
+		error = PF_GetThisPage(amitab_ele->fd, amscantab_ele->current, &pagebuf);
+		if(error != PFE_OK) PF_ErrorHandler(error);	
+		memcpy((Node*) &node, (char*) (pagebuf), sizeof(Node));
+	}
+
+	
+
+	error = PF_UnpinPage(amitab_ele->fd, amscantab_ele->current, 0);
+	if(error != PFE_OK) PF_ErrorHandler(error);
+
+	recid.recnum = 0;
+	recid.pagenum = 0;
+
+	return recid;
 }
 
 /*
@@ -196,6 +269,8 @@ RECID AM_FindNextEntry(int scanDesc){
  *
  * This function terminates an index scan and disposes of the scan state information. It returns AME_OK 
  * if the scan is successfully closed, and an AM error code otherwise.
+ *
+ * Dev: Patric
  */
 int AM_CloseIndexScan(int scanDesc) {
 	AMscantab_ele* amscantab_ele;

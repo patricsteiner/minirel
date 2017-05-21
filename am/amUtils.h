@@ -32,7 +32,7 @@ typedef struct AMscantab_ele{
 	int     current;           /* last page (node) scanned */
 	int     op;                /* operator for comparison*/
     char    value[255];        /* value for comparison (or null) , size max == 255*/
-} HFscantab_ele;
+} AMscantab_ele;
 
 
 
