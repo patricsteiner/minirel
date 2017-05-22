@@ -19,38 +19,26 @@ AMscantab_ele *AMscantab;
 size_t AMitab_length;
 size_t AMscantab_length;
 
-bool_t compareInt(int a, int b, int op) {
+bool_t compareNumber(int a, int b, int op) {
 	switch (op) {
-		case EQ_OP: return a == b;
-		case LT_OP: return a < b;
-		case GT_OP: return a > b;
-		case LE_OP: return a <= b;
-		case GE_OP: return a >= b;
-		case NE_OP: return a != b;
-		default: return FALSE;
-	}
-}
-
-bool_t compareFloat(float a, float b, int op) {
-	switch (op) {
-		case EQ_OP: return a == b;
-		case LT_OP: return a < b;
-		case GT_OP: return a > b;
-		case LE_OP: return a <= b;
-		case GE_OP: return a >= b;
-		case NE_OP: return a != b;
+		case EQ_OP: return a == b ? TRUE : FALSE;
+		case LT_OP: return a < b ? TRUE : FALSE;
+		case GT_OP: return a > b ? TRUE : FALSE;
+		case LE_OP: return a <= b ? TRUE : FALSE;
+		case GE_OP: return a >= b ? TRUE : FALSE;
+		case NE_OP: return a != b ? TRUE : FALSE;
 		default: return FALSE;
 	}
 }
 
 bool_t compareChars(char* a, char* b, int op, int len) {
 	switch (op) {
-		case EQ_OP: return strncmp(a, b, len) == 0;
-		case LT_OP: return strncmp(a, b, len) < 0;
-		case GT_OP: return strncmp(a, b, len) > 0;
-		case LE_OP: return strncmp(a, b, len) <= 0;
-		case GE_OP: return strncmp(a, b, len) >= 0;
-		case NE_OP: return strncmp(a, b, len) != 0;
+		case EQ_OP: return strncmp(a, b, len) == 0 ? TRUE : FALSE;
+		case LT_OP: return strncmp(a, b, len) < 0 ? TRUE : FALSE;
+		case GT_OP: return strncmp(a, b, len) > 0 ? TRUE : FALSE;
+		case LE_OP: return strncmp(a, b, len) <= 0 ? TRUE : FALSE;
+		case GE_OP: return strncmp(a, b, len) >= 0 ? TRUE : FALSE;
+		case NE_OP: return strncmp(a, b, len) != 0 ? TRUE : FALSE;
 		default: return FALSE;
 	}
 }
@@ -203,7 +191,9 @@ int AM_OpenIndexScan(int AM_fd, int op, char *value){
 	/* copy the values */
 	memcpy((char*) amscantab_ele->value, (char*) value, amitab_ele->header.attrLength);
 	amscantab_ele->op = op;
-	amscantab_ele->current = amitab_ele->racine_page; /* always start at the root */
+	amscantab_ele->current_page = /* TODO if op= NE, just use smaller than a million or sth */
+	amscantab_ele->current_key = /* TODO */
+	amscantab_ele->current_num_keys = /* TODO */
 	amscantab_ele->AMfd = AM_fd;
 	amscantab_ele->valid = TRUE;
 	
@@ -224,22 +214,24 @@ int AM_OpenIndexScan(int AM_fd, int op, char *value){
  */
 RECID AM_FindNextEntry(int scanDesc) {
 	/* Procedure:
-		- read current node, compare keys with value
-		- compare value and key, go to the right next node
-		- repeat until a leaf is reached
-		- if value matches: update the current node of the scan and return the RECID
-		- if no match: update the current node of the scan and return EOF
+		- check operator and go to according direction (left or right) by doing:
+			- increment/decrement key_pos while key_pos > 0 resp. < num_keys
+			- if first/last couple is reached, jump to next/prev page
+			- check on every key if its a match, if yes return and save current pos
 	*/
 
 	RECID recid;
 	AMitab_ele* amitab_ele;
 	AMscantab_ele* amscantab_ele;
 	char* pagebuf;
-	Node node;
-	int error, key, cmp, cmp_prev, page, offset;
+	/*Node node;*/
+	int error, current_key, current_page, direction, new_page, cmp_prev, page, offset;
 	float f;
 	int i;
 	char c[255];
+	ileaf ileaf;
+	fleaf fleaf;
+	cleaf cleaf;
 
 	/*cmp_prev = -1;*/
 
@@ -252,71 +244,144 @@ RECID AM_FindNextEntry(int scanDesc) {
 
 	/* read the current node */
 	error = PF_GetThisPage(amitab_ele->fd, amscantab_ele->current, &pagebuf);
-	if(error != PFE_OK) PF_ErrorHandler(error);	
-	memcpy((Node*) &node, (char*) (pagebuf), sizeof(Node));
+	if(error != PFE_OK) PF_ErrorHandler(error);
 
-	/* go down the tree until a leaf is reached */
-	while (!node.is_leaf) {
-		/* key = 0;
-		/* in every node that is visited, compare with each key until match is found 
-		while (key++ < node.num_keys) {
-			offset = sizeof(Node) + key * (amitab_ele->header.attrLength + sizeof(int));
-			/* read the pagenumber (node) 
-			memcpy((page*) &page, (char*) (pagebuf + offset) + amitab_ele->header.attrLength, sizeof(int));
-			if (amitab_ele->header.attrType == 'i') {
-				/* read the key (attr) 
-				memcpy((int*) &i, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
-				cmp = compareInt(i, amscantab_ele->value, amscantab_ele->op);
-			}
-			else if (amitab_ele->header.attrType == 'f') {
-				memcpy((float*) &f, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
-				cmp = compareFloat(f, amscantab_ele->value, amscantab_ele->op);
-			}
-			else if (amitab_ele->header.attrType == 'c') {
-				memcpy((float*) &c, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
-				cmp = compareChars(c, amscantab_ele->value, amscantab_ele->op, amitab_ele->header.attrLength);
-			}
-			if (cmp == 0) {
-				
-			}			
-		}*/
+	switch (amitab_ele->header.attrType) {
+		case 'i':
+			ileaf.previous = pagebuf + sizeof(bool_t) + sizeof(int); /* or sth, fill al fields */
+			//memcpy((ileaf*) &ileaf, (char*) (pagebuf), sizeof(inode));
 
-		/* update the current node and read it */
-		memcpy((page*) &page, (char*) (pagebuf + sizeof(Node) + amitab_ele->header.attrLength), sizeof(int));
-		amscantab_ele->current = page;
-		error = PF_GetThisPage(amitab_ele->fd, amscantab_ele->current, &pagebuf);
-		if(error != PFE_OK) PF_ErrorHandler(error);	
-		memcpy((Node*) &node, (char*) (pagebuf), sizeof(Node));
+			break;
+		case 'f':
+			break;
+		case 'c':
+			break;
+	}
+	
+	direction = 1;
+	if (amscantab_ele->op == LT_OP || amscantab_ele->op == LE_OP) direction *= -1; /* iterate to left if less operation */
+	switch (op) {
+		case EQ_OP: /* fallthrough */
+		case NE_OP: /* fallthrough */
+		case GT_OP: /* fallthrough */
+		case GE_OP: direction = 1; break;
+		case LT_OP: /* fallthrough */
+		case LE_OP: direction = -1; break;
+	
 	}
 
-	while (node.next_leaf != 0) {
-		key = 0;
-		/* in every node that is visited, compare with each key until match is found */
-		while (key++ < node.num_keys) {
-			offset = sizeof(Node) + key * (amitab_ele->header.attrLength + sizeof(int));
-			/* read the pagenumber (node) */
-			memcpy((page*) &page, (char*) (pagebuf + offset) + amitab_ele->header.attrLength, sizeof(int));
-			if (amitab_ele->header.attrType == 'i') {
-				/* read the key (attr) */
-				memcpy((int*) &i, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
-				cmp = compareInt(i, amscantab_ele->value, amscantab_ele->op);
+	/* while there is a next page */
+	while (amscantab_ele->current_page > -1) {
+		/* iterate through keys while there is a next key */
+		while (amscantab_ele->current_key > 0 && amscantab_ele->current_key < amscantab_ele->current_num_keys) {
+			/* compare and return if match */
+			switch (amitab_ele->header.attrType) {
+			case 'i': /* fallthrough */
+			case 'f': 
+				if (compareNumber(, amscantab_ele->op) == TRUE) {
+					/* fill recid and return */
+					return recid;
+				}
+				break;
+			case 'c':
+				if (compareChars(, amscantab_ele->op) == TRUE) {
+					/* fill recid and return */
+					return recid;
+				}
+				break;
 			}
-			else if (amitab_ele->header.attrType == 'f') {
-				memcpy((float*) &f, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
-				cmp = compareFloat(f, amscantab_ele->value, amscantab_ele->op);
-			}
-			else if (amitab_ele->header.attrType == 'c') {
-				memcpy((float*) &c, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
-				cmp = compareChars(c, amscantab_ele->value, amscantab_ele->op, amitab_ele->header.attrLength);
-			}
-			if (cmp == 0) {
-				/* it's a match, return the recid! */
-				recid.recnum = -150;
-				recid.pagenum = -150;
-				return recid;
-			}		
+		
+			amscantab_ele->current_key += direction;
+		}
+
+		/* update amscantab_ele by reading next/prev page. set page to -1 if EOF. */
+		if (direction < 0) {
+			new_page = pagebuf + sizeof(bool_t) + sizeof(int)*2; /*TODO: adjust accordingly */
+		} else {
+			new_page = pagebuf + sizeof(bool_t) + sizeof(int)*2 + ; /*TODO: adjust accordingly */
+			/* or use ileaf? set -1 if EOF */
+		}
+		
+		error = PF_UnpinPage(amitab_ele->fd, amscantab_ele->current, 0);
+		if(error != PFE_OK) PF_ErrorHandler(error);
+		amscantab_ele->current_page = new_page;
+		error = PF_GetThisPage(amitab_ele->fd, amscantab_ele->current_page, &pagebuf);
+		if(error != PFE_OK) PF_ErrorHandler(error);
+		if (direction < 0) {
+			amscantab_ele->current_key = /*TODO */
+		} else {
+
 		}
 	}
+
+
+
+
+
+
+//
+//	/* go down the tree until a leaf is reached */
+//	while (!node.is_leaf) {
+//		/* key = 0;
+//		/* in every node that is visited, compare with each key until match is found 
+//		while (key++ < node.num_keys) {
+//			offset = sizeof(Node) + key * (amitab_ele->header.attrLength + sizeof(int));
+//			/* read the pagenumber (node) 
+//			memcpy((page*) &page, (char*) (pagebuf + offset) + amitab_ele->header.attrLength, sizeof(int));
+//			if (amitab_ele->header.attrType == 'i') {
+//				/* read the key (attr) 
+//				memcpy((int*) &i, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
+//				cmp = compareInt(i, amscantab_ele->value, amscantab_ele->op);
+//			}
+//			else if (amitab_ele->header.attrType == 'f') {
+//				memcpy((float*) &f, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
+//				cmp = compareFloat(f, amscantab_ele->value, amscantab_ele->op);
+//			}
+//			else if (amitab_ele->header.attrType == 'c') {
+//				memcpy((float*) &c, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
+//				cmp = compareChars(c, amscantab_ele->value, amscantab_ele->op, amitab_ele->header.attrLength);
+//			}
+//			if (cmp == 0) {
+				//
+//			}			
+//		}*/
+//
+//		/* update the current node and read it */
+//		memcpy((page*) &page, (char*) (pagebuf + sizeof(Node) + amitab_ele->header.attrLength), sizeof(int));
+//		amscantab_ele->current = page;
+//		error = PF_GetThisPage(amitab_ele->fd, amscantab_ele->current, &pagebuf);
+//		if(error != PFE_OK) PF_ErrorHandler(error);	
+//		memcpy((Node*) &node, (char*) (pagebuf), sizeof(Node));
+//	}
+//
+//	while (node.next_leaf != 0) {
+//		key = 0;
+//		/* in every node that is visited, compare with each key until match is found */
+//		while (key++ < node.num_keys) {
+//			offset = sizeof(Node) + key * (amitab_ele->header.attrLength + sizeof(int));
+//			/* read the pagenumber (node) */
+//			memcpy((page*) &page, (char*) (pagebuf + offset) + amitab_ele->header.attrLength, sizeof(int));
+//			if (amitab_ele->header.attrType == 'i') {
+//				/* read the key (attr) */
+//				memcpy((int*) &i, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
+//				cmp = compareInt(i, amscantab_ele->value, amscantab_ele->op);
+//			}
+//			else if (amitab_ele->header.attrType == 'f') {
+//				memcpy((float*) &f, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
+//				cmp = compareFloat(f, amscantab_ele->value, amscantab_ele->op);
+//			}
+//			else if (amitab_ele->header.attrType == 'c') {
+//				memcpy((float*) &c, (char*) (pagebuf + offset), amitab_ele->header.attrLength);
+//				cmp = compareChars(c, amscantab_ele->value, amscantab_ele->op, amitab_ele->header.attrLength);
+//			}
+//			if (cmp == 0) {
+//				/* it's a match, return the recid! */
+//				recid.recnum = -150;
+//				recid.pagenum = -150;
+//				return recid;
+//			}		
+//		}
+//	}
 
 	error = PF_UnpinPage(amitab_ele->fd, amscantab_ele->current, 0);
 	if(error != PFE_OK) PF_ErrorHandler(error);
@@ -347,7 +412,7 @@ int AM_CloseIndexScan(int scanDesc) {
 	/* done similar to the closeScan in HF. is this procedure not needed? */
 	if (scanDesc == AMscantab_length - 1) { /* if last scan in the table */
 		if (AMscantab_length > 0) AMscantab_length--;
-		while( ((AMscantab + AMscantab_length - 1)->valid == FALSE) && (AMscantab_length > 0)) {
+		while( (AMscantab_length > 0) && ((AMscantab + AMscantab_length - 1)->valid == FALSE)) {
 			AMscantab_length--; /* delete all following scan with valid == FALSE */
 		}
 	}

@@ -25,11 +25,12 @@ typedef struct AMitab_ele{
 
 
 
-/* TODO: more info needed?   */
 typedef struct AMscantab_ele{
 	bool_t  valid; 		       /* set to TRUE when index is being scanned*/
 	int     AMfd;              /* AM file descriptor */
-	int     current;           /* last page (node) scanned */
+	int     current_page;      /* the current page (node) that is being scanned. -1 if EOF */
+	int     current_key;	   /* current key position of the scan (next one to be scanned) */
+	int 	current_num_keys;  /* number of keys in current node */
 	int     op;                /* operator for comparison*/
     char    value[255];        /* value for comparison (or null) , size max == 255*/
 } AMscantab_ele;
