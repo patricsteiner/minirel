@@ -25,7 +25,7 @@ AMscantab_ele *AMscantab;
 size_t AMitab_length;
 size_t AMscantab_length;
 
-bool_t compareNumber(int a, int b, int op) {
+bool_t compareInt(int a, int b, int op) {
 	switch (op) {
 		case EQ_OP: return a == b ? TRUE : FALSE;
 		case LT_OP: return a < b ? TRUE : FALSE;
@@ -36,6 +36,19 @@ bool_t compareNumber(int a, int b, int op) {
 		default: return FALSE;
 	}
 }
+
+bool_t compareFloat(float a, float b, int op) {
+	switch (op) {
+		case EQ_OP: return a == b ? TRUE : FALSE;
+		case LT_OP: return a < b ? TRUE : FALSE;
+		case GT_OP: return a > b ? TRUE : FALSE;
+		case LE_OP: return a <= b ? TRUE : FALSE;
+		case GE_OP: return a >= b ? TRUE : FALSE;
+		case NE_OP: return a != b ? TRUE : FALSE;
+		default: return FALSE;
+	}
+}
+
 
 bool_t compareChars(char* a, char* b, int op, int len) {
 	switch (op) {
@@ -575,12 +588,12 @@ RECID AM_FindNextEntry(int scanDesc) {
 	AMscantab_ele* amscantab_ele;
 	char* pagebuf;
 	int error, current_key, current_page, direction, tmp_page, tmp_key, offset;
-	float f;
-	int i;
-	char c[255];
-	ileaf ileaf;
-	fleaf fleaf;
-	cleaf cleaf;
+	float f1, f2;
+	int i1, i2;
+	char c1[255], c2[255];
+	ileaf inod;
+	fleaf fnod;
+	cleaf cnod;
 	bool_t found;
 
 	found = FALSE;
@@ -598,16 +611,20 @@ RECID AM_FindNextEntry(int scanDesc) {
 	/* read num_keys and write it in scantab_ele */
 	memcpy((int*) &(amscantab_ele->current_num_keys), (int*) pagebuf + sizeof(bool_t), sizeof(int));
 
-//	switch (amitab_ele->header.attrType) {
-//		case 'i':
-//			ileaf.previous = pagebuf + sizeof(bool_t) + sizeof(int); /* or sth, fill all fields */
-//			//memcpy((ileaf*) &ileaf, (char*) (pagebuf), sizeof(inode));
-//			break;
-//		case 'f':
-//			break;
-//		case 'c':
-//			break;
-//	}
+	switch (amitab_ele->header.attrType) {
+		case 'i':
+			inod.num_keys = *((int*) pagebuf + sizeof(bool_t));
+			inod.couple = (icoupleLeaf*) pagebuf + sizeof(bool_t) + sizeof(int) + sizeof(int);
+			break;
+		case 'f':
+			fnod.num_keys = *((int*) pagebuf + sizeof(bool_t));
+			fnod.couple = (fcoupleLeaf*) pagebuf + sizeof(bool_t) + sizeof(int) + sizeof(int);
+			break;
+		case 'c':
+			cnod.num_keys = *((int*) pagebuf + sizeof(bool_t));
+			cnod.couple = (ccoupleLeaf*) pagebuf + sizeof(bool_t) + sizeof(int) + sizeof(int);
+			break;
+	}
 	
 	/* iterate to right-to-left if less-operation */
 	direction = (amscantab_ele->op == LT_OP || amscantab_ele->op == LE_OP) ? -1 : 1;
@@ -627,12 +644,21 @@ RECID AM_FindNextEntry(int scanDesc) {
 		while (found == FALSE && amscantab_ele->current_key > 0 && amscantab_ele->current_key < amscantab_ele->current_num_keys) {
 			/* compare and return if match */
 			switch (amitab_ele->header.attrType) {
-			case 'i': /* fallthrough */
-			case 'f': 
-				if (compareNumber(, amscantab_ele->op) == TRUE) found = TRUE;
+			case 'i':
+				/* get the the values to compare */
+				memcpy(&i1, (char*) &(amscantab_ele->value), sizeof(int));
+				i2 = inod.couple[amscantab_ele->current_key].key;
+				if (compareInt(i1, i2, amscantab_ele->op) == TRUE) found = TRUE;
+				break;
+			case 'f':
+				memcpy(&f1, (char*) &(amscantab_ele->value), sizeof(float));
+				f2 = fnod.couple[amscantab_ele->current_key].key;
+				if (compareFloat(f1, f2, amscantab_ele->op) == TRUE) found = TRUE;
 				break;
 			case 'c':
-				if (compareChars(, amscantab_ele->op) == TRUE) found = TRUE;
+				memcpy(&c1, (char*) &(amscantab_ele->value), amitab_ele->header.attrLength);
+				c2 = (cnod.couple + amscantab_ele->current_key * (sizeof(int) + attrLength) + sizeof(int)
+				if (compareChars(c1, c2, amscantab_ele->op) == TRUE) found = TRUE;
 				break;
 			}
 			amscantab_ele->current_key += direction;
@@ -661,10 +687,21 @@ RECID AM_FindNextEntry(int scanDesc) {
 
 		/* return here, so the update and cleanup above is done in every case */
 		if (found == TRUE) {
-			recid.pagenum = /* TODO */
-			recid.recnum = /* TODO */
-			return recid;
-		}	
+			switch (amitab_ele->header.attrType) {
+			case 'i':
+				recid.pagenum = inod.couple.recid.pagenum;
+				recid.recnum = inod.couple.recid.recnum;
+				break;
+			case 'f':
+				recid.pagenum = inod.couple.recid.pagenum;
+				recid.recnum = inod.couple.recid.recnum;
+				break;
+			case 'c':
+				recid.pagenum = inod.couple.recid.pagenum;
+				recid.recnum = inod.couple.recid.recnum;
+			break;
+		}
+		return recid;
 	}
 
 
