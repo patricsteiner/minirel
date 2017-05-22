@@ -14,6 +14,12 @@
 #include "am.h"
 #include "../am/amUtils.h"
 
+
+/* B tree*/
+/* policy to go through the B tree using a particular value, if the value if len than a key in a node or a leaf then the previous pointer has to be taken, otherwise ( greater or equal) the value is check with the next keys in the node until it is less than one or until the last key (the last pointer of the node is taken then )*/
+/* int AM_FindLeaf(int ifd,char* value, int* tab) algorithm: -check parameter: the size of tab is the height of the tree and the first element is the page num of root.
+							 - go through the Btree with the policy explain above, and stock the pagenum of every scanned node in the array tab , at the end the pagenum of the leaf where the value has to be insert is returned 
+							 - return error or HFE_OK, in case of duplicate key: the position of the first equal key in the leaf*/
 AMitab_ele *AMitab;
 AMscantab_ele *AMscantab;
 size_t AMitab_length;
@@ -43,6 +49,126 @@ bool_t compareChars(char* a, char* b, int op, int len) {
 	}
 }
 
+/* For any type of node: given a value and the position of a couple ( pointer,key) in a node, return the pointer if it has to be taken or not by comparing key and value. Return 0 if the pointer is unknown.
+ * the fanout is also given, in case of the couple contain the last key, then the last pointer of the node has to be taken
+ * this function is created to avoid switch-case inside a loop
+ */
+bool_t AM_CheckPointer(int pos, int fanout, char* value, char attrType, int attrLength, char* pagebuf){
+	/*use to get any type of node and leaf from a buffer page*/
+	inode inod;
+	fnode fnod;
+	cnode cnod;
+	/*ileaf* ilcast;
+	fleaf* flcast;
+	cleaf* clcast;*/
+	
+	switch(attrType){
+		case 'i': 
+			  /* fill the struct using offset and cast operations */
+			  inod.num_keys= *((int*)pagebuf+sizeof(bool_t));
+			  inod.couple=(icouple *)pagebuf+sizeof(bool_t)+sizeof(int);
+			  inod.last_pt=*((int*)(pagebuf+sizeof(bool_t)+(inod.num_keys)*2*sizeof(int)+sizeof(int)));
+			  
+			  if( pos<fanout-1){ /* fanout -1 is the number of couple (pointer, key)*/
+				if( strncmp((char*) &(inod.couple[pos].key), (char*) value,  sizeof(int)) <0) return inod.couple[pos].pagenum;
+				return 0;
+			   }
+			   else if( pos=fanout-1) {
+			   	if( strncmp((char*) &(inod.couple[pos].key), (char*) value,  sizeof(int)) >=0) return inod.last_pt;
+				return 0;
+			   }
+			   else {
+				printf( "DEBUG: pb with fanout or position given \n");
+				return -1;
+			   }
+			   break;
+
+		case 'c':  /* fill the struct using offset and cast operations */
+			  cnod.num_keys= *((int*)pagebuf+sizeof(bool_t));
+			  cnod.couple=(ccouple*)pagebuf+sizeof(bool_t)+sizeof(int);
+			  cnod.last_pt=*((int*)(pagebuf+sizeof(bool_t)+(cnod.num_keys)*2*sizeof(int)+sizeof(int)));
+			  if( pos<fanout-1){ /* fanout -1 is the number of couple (pointer, key)*/
+				if( strncmp((char*) cnod.couple[pos].key, (char*) value,  attrLength) <0) return cnod.couple[pos].pagenum;
+				return 0;
+			   }
+			   else if( pos=fanout-1) {
+			   	if( strncmp((char*) cnod.couple[pos].key, (char*) value,  attrLength) >=0) return cnod.last_pt;
+				return 0;
+			   }
+			   else {
+				printf( "DEBUG: pb with fanout or position given \n");
+				return -1;
+			   }
+			   break;
+
+		case 'f':  /* fill the struct using offset and cast operations */
+			  fnod.num_keys= *((int*)pagebuf+sizeof(bool_t));
+			  fnod.couple=(fcouple*)pagebuf+sizeof(bool_t)+sizeof(int);
+			  fnod.last_pt=*((int*)(pagebuf+sizeof(bool_t)+(fnod.num_keys)*2*sizeof(int)+sizeof(int)));
+
+			  if( pos<(fanout-1)){ /* fanout -1 is the number of couple (pointer, key)*/
+				if(  fnod.couple[pos].key > *((float*)value) ) return fnod.couple[pos].pagenum;
+				return 0;
+			   }
+			   else if(( pos==fanout-1)) {
+			   	if(  fnod.couple[pos].key <=*((float*)value) ) return fnod.last_pt;
+				return 0;
+			   }
+			   else {
+				printf( "DEBUG: pb with fanout or position given \n");
+				return -1;
+			   }
+			   break;
+		default:
+			
+			return AME_ATTRTYPE;
+	}
+}
+
+	
+	 
+int AM_FindLeaf(int idesc, char* value, int* tab){
+	int error,  pagenum;
+	bool_t is_leaf;
+	AMitab_ele* pt;
+	int fanout;
+	char* pagebuf;
+	int i,j;
+	
+	
+	/* all verifications of idesc and root number has already been done by the caller function */
+	pt=AMitab+idesc;
+	
+	if(tab[0]<=1) return AME_WRONGROOT;
+	
+	for(i=0; i<(pt->header.height_tree);i++){
+
+		error=PF_GetThisPage(pt->fd, tab[i], &pagebuf);
+		if(error!=PFE_OK) PF_ErrorHandler(error);
+		
+		/*check if this node is a leaf */
+		memcpy((bool_t*) is_leaf, pagebuf, sizeof(bool_t));
+		
+		if( is_leaf==FALSE){
+				fanout=pt->fanout;
+			/* have to find the next child using comparison */
+			/* fanout = n ==> n-1 key */
+				for(j=0; j<(pt->fanout-1);j++){
+					}
+		}
+   
+
+	}
+					
+					
+						
+			
+}
+
+
+
+
+
 /* 
  *
  */
@@ -58,13 +184,13 @@ int AM_CreateIndex(char *fileName, int indexNo, char attrType, int attrLength, b
 	int error, fd, pagenum;
 	AMitab_ele* pt;
 	char* headerbuf;
-
+/**********************add verif on all attribute check HF_OpenScan */
 	/* fill the array of the hf file table*/ 
 	if (AMitab_length >= AM_ITAB_SIZE){
 		return AME_FULLTABLE;
 	}
 	pt = AMitab + AMitab_length;
-	AMitab++;
+	AMitab_length++;
 
 	sprintf(pt->iname, "%s.%d", fileName, indexNo);
 
@@ -134,10 +260,129 @@ int AM_DestroyIndex(char *fileName, int indexNo){
 }
 
 int AM_OpenIndex(char *fileName, int indexNo){
-	return AME_OK;
+	int error, pffd, fileDesc;
+	AMitab_ele *pt;
+	char *headerbuf;
+	char* new_filename;
+	
+	/*Initialisation */
+	new_filename = malloc(sizeof(fileName) + sizeof(int));
+	printf("length %d", AMitab_length);
+	/*parameters cheking */
+	if( AMitab_length >= AM_ITAB_SIZE){
+		return AME_FULLTABLE;
+	}
+	sprintf(new_filename, "%s.%i", fileName, indexNo);
+	pffd = PF_OpenFile(new_filename);
+	if(pffd < 0){
+		PF_ErrorHandler(pffd);
+	}
+
+	/* read the header which are stored on the second page of the file (index = 1) */ 
+	error = PF_GetThisPage(pffd, 1, &headerbuf);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
+
+
+	/* Fill the array of the AM index table */
+	
+	pt = AMitab + AMitab_length;
+	
+	pt->fd = pffd;
+	pt->valid = TRUE;
+	pt->dirty = FALSE;
+	pt->racine_page = 2;
+	
+	memcpy(pt->iname, new_filename, sizeof(new_filename));
+	free(new_filename);
+	memcpy( (int*) &pt->header.indexNo,(char*) headerbuf, sizeof(int));
+	memcpy((int*) &pt->header.attrType,(char*) headerbuf,  sizeof(char));
+	memcpy( (int*) &pt->header.attrLength, (char*) headerbuf,sizeof(int));
+	memcpy((int*) &pt->header.height_tree,(char*) headerbuf,  sizeof(int));
+	memcpy( (int*) &pt->header.nb_leaf,(char*) headerbuf, sizeof(int));
+
+	pt->fanout = ( (PF_PAGE_SIZE ) - (3+1)*sizeof(int)) / (sizeof(int) + pt->header.attrLength);
+	
+	
+	/*increment the size of the table*/
+	AMitab_length ++;
+	fileDesc = AMitab_length -1 ;
+	/*unpin and touch the header page */
+	error = PF_UnpinPage(pt->fd, 1, 1);
+	if(error != PFE_OK){
+		PF_ErrorHandler(error);
+	}
+	
+	return fileDesc;
+	
 }
 
 int AM_CloseIndex(int fileDesc){
+
+	AMitab_ele* pt;
+	int error;
+	char* pagebuf;
+	int i;
+	i=0;
+	
+	
+
+	if (fileDesc < 0 || fileDesc >= AMitab_length) return AME_FD;
+	pt=AMitab + fileDesc ;
+	/*check is file is not already close */
+	if (pt->valid!=TRUE) return AME_INDEXNOTOPEN;
+
+
+	/* check the header */
+	if (pt->dirty==TRUE){ /* header has to be written again */
+		error=PF_GetThisPage( pt->fd, 1, &pagebuf);
+		if(error!=PFE_OK)PF_ErrorHandler(error);
+
+
+		/* write the header  */
+		
+		memcpy((char*) pagebuf, (int*) &pt->header.indexNo, sizeof(int));
+		memcpy((char*) pagebuf, (int*) &pt->header.attrType, sizeof(char));
+		memcpy((char*) pagebuf, (int*) &pt->header.attrLength, sizeof(int));
+		memcpy((char*) pagebuf, (int*) &pt->header.height_tree, sizeof(int));
+		memcpy((char*) pagebuf, (int*) &pt->header.nb_leaf, sizeof(int));
+
+
+		/* the page is dirty now ==> last arg of PF_UnpinPage ("dirty") set to one */
+		error = PF_UnpinPage(pt->fd, 1, 1);
+		if(error != PFE_OK) PF_ErrorHandler(error);
+		
+		
+	}
+	/* close the file using pf layer */
+	error=PF_CloseFile(pt->fd);
+	if(error!=PFE_OK)PF_ErrorHandler(error);
+
+	/* check that there is no scan in progress involving this file*/
+	/* by scanning the scan table */
+	/*****************for (i=0;i<AMscantab_length;i++){
+			if((AMcantab+i)->AMfd==fileDesc) return AMESCANOPEN;
+	}
+	*/
+
+	
+	/*deletion */
+	/* a file can be deleted only if it is at then end of the table in order to have static file descriptor */
+	/* In any case the boolean valid is set to false to precise that this file is closed */
+        pt->valid==FALSE;
+	if(fileDesc==(AMitab_length-1)){ /* it is the last file of the table */ 
+		AMitab_length--;
+
+		if(AMitab_length >0){
+			AMitab_length--;
+			while (AMitab_length>0 &&  ((AMitab+ AMitab_length-1)->valid==FALSE)){
+				AMitab_length--; /* delete all the closed file, which are the end of the table */
+			}
+		}
+	}
+	
+
 	return AME_OK;
 }
 
