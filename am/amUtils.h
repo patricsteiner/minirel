@@ -54,8 +54,8 @@ Others pages :
 Each page is a node (starting from page 2)
 
 /*more errors*/
-#define	AM_INDEXNOTOPEN		(-25
-*/
+#define	AME_INDEXNOTOPEN		(-25)
+
 
 
 

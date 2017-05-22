@@ -38,7 +38,7 @@ int AM_CreateIndex(char *fileName, int indexNo, char attrType, int attrLength, b
 		return AME_FULLTABLE;
 	}
 	pt = AMitab + AMitab_length;
-	AMitab++;
+	AMitab_length++;
 
 	sprintf(pt->iname, "%s.%d", fileName, indexNo);
 
@@ -115,9 +115,9 @@ int AM_OpenIndex(char *fileName, int indexNo){
 	
 	/*Initialisation */
 	new_filename = malloc(sizeof(fileName) + sizeof(int));
-	fileDesc = AMitab_length;
+	printf("length %d", AMitab_length);
 	/*parameters cheking */
-	if(fileDesc >= AM_ITAB_SIZE){
+	if( AMitab_length >= AM_ITAB_SIZE){
 		return AME_FULLTABLE;
 	}
 	sprintf(new_filename, "%s.%i", fileName, indexNo);
@@ -155,7 +155,7 @@ int AM_OpenIndex(char *fileName, int indexNo){
 	
 	/*increment the size of the table*/
 	AMitab_length ++;
-
+	fileDesc = AMitab_length -1 ;
 	/*unpin and touch the header page */
 	error = PF_UnpinPage(pt->fd, 1, 1);
 	if(error != PFE_OK){

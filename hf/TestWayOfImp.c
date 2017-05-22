@@ -12,14 +12,14 @@ char pfpagebuf[4092];
 
 void sum( char* valuei, char* valuef, char* valuec){
 	int a=350;
-	float f=50.0;
+	float f=1.0;
 	char string[10];
 	memcpy((char*) string, "record11",10);
 	printf( "valuef %f \n", *((float*)valuef));
 	printf("string %s , %d\n ", string, sizeof(string));
 	printf(" size float %d \n", sizeof(float));
 	printf( "res de comparaison %d \n ", strncmp((char*) &a, valuei, 4));
-	printf( "res de comparaison %d \n ", f==*((float*)valuef) );
+	printf( "res de comparaison flooooooooat %d \n ", f>=*((float*)valuef) );
 	printf( " res de comparaions string %d \n", strncmp((char*) string, valuec, sizeof(string)));
 }
 int main (){
