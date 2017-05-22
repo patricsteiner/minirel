@@ -14,6 +14,14 @@
 #include "am.h"
 #include "../am/amUtils.h"
 
+
+
+
+
+/* B tree*/
+/* policy to go through the B tree using a particular value, if the value if len than a key in a node or a leaf then the previous pointer has to be taken, otherwise ( greater or equal) the value is check with the next keys in the node until it is less than one or until the last key (the last pointer of the node is taken then )*/
+/* int* AM_FindLeaf(char* value, int pagenum)  algorithm: - check the parameters
+							 - go through the Btree with the policy explain above, and stock the pagenum of every scanned node in an array, at the end the pagenum of the leaf where the value has to be insert is returned */
 AMitab_ele *AMitab;
 size_t AMitab_length;
 

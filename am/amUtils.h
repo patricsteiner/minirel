@@ -38,13 +38,42 @@ typedef struct AMitab_ele{
  * first pointer refers to lower node (with key less than the smallest key
  * in the keys array.)
  */
-typedef struct Node{
-	bool_t is_leaf;
-	int parent;			/* pagenum of parent node , 0 if the root */
+typedef struct couple{
+	int pagenum; 
+	typedef union key{
+	   float f;
+	   char* c; /* variable length, consequently has to be malloc */
+	   int i;
+	}key;
+	
+}couple; 
+
+typedef struct node{
+	bool_t is_leaf;            /* first element checked, is the boolean a node ? */ 
 	int num_keys;		/* number of key into the node*/
-	int prev_leaf;		/* pagenum of previous leaf, 0 if first leaf */
-	int next_leaf;		/* pagenum of next leaf, 0 if last leaf */
-} Node;
+	couple*	couple;		/* all the couple key + pointer ( the page number of the child) , has to be malloc */
+	int last_pt;            /* there is one more pointer than keys */
+	
+	
+} node;
+typedef struct coupleLeaf{
+	RECID recid; 
+	typedef union key{
+	   float f;
+	   char* c; /* variable length, consequently has to be malloc */
+	   int i;
+	}key;
+	
+}coupleLeaf;
+	
+typedef struct leaf{
+	bool_t is_leaf;            /* first element checked, is the boolean a node ? */ 
+	int num_keys;		/* number of key into the node*/
+	int previous;           /* pagenum of the previous page */
+	coupleLeaf* couple;		/* all the couple key + pointer ( the page number of the child) , has to be malloc */
+	RECID last_recid;            /* there is one more pointer than keys */
+	int next; /* pagenum of the next page */
+} leaf;
 
 /*
 Page 0 : PFHeader Page
