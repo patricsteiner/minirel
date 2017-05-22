@@ -77,32 +77,34 @@ void amtest1()
       AM_PrintError("Problem opening");
       exit(1);
    }
-
-   /* Inserting value in the HF file and the B+ Tree 
+   printf("bool t taille %d\n", sizeof(bool_t) );
+   AM_PrintTable();
+   /*Inserting value in the HF file and the B+ Tree  */
       value = 10;
       while (value < 100)
       {
          sprintf(string_val, "entry%d", value);
-          Notice the recid value being inserted is trash.    */
+         /* Notice the recid value being inserted is trash.    */ 
          /* The (char *)& is unnecessary in AM_InsertEntry     */
          /* because in this case string_val is (char *)        */
          /* but I am putting it here to emphasize what to pass */
          /* in other cases (int and float value                */
 
-         /* Inserting the record in the HF file 
+         /* Inserting the record in the HF file */
          recid = HF_InsertRec(hf_fd, string_val);
          if (!HF_ValidRecId(hf_fd,recid)){
             HF_PrintError("Problem inserting record in HF file");
             exit(1);
          }
-     
-         /* Inserting the record in the B+ Tree 
+         printf("Inserting recid/key { (%d , %d) , %s }\n", recid.pagenum, recid.recnum, string_val);
+         /* Inserting the record in the B+ Tree */
          if (AM_InsertEntry(am_fd, (char *)&string_val, recid) != AME_OK) {
              AM_PrintError("Problem Inserting rec");
              exit(1);
          }
-          value = value + 2;
-      }*/
+         print_page(am_fd, 2);
+         value = value + 2;
+      }
 
    if (HF_CloseFile(hf_fd) != AME_OK){
       HF_PrintError("Problem closing file");

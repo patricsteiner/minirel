@@ -470,7 +470,7 @@ RECID HF_InsertRec(int fileDesc, char *record){
 		memcpy(( char*) ( datapagebuf + bitmap_size + sizeof(int) ), record, (pt->header.rec_size)); 
 
 		pt->header.num_free_pages ++;
-		(pt->header.num_pages) ++; printf( "\n\n\n\n hhhhhhhhhhhhhhhhhhhhhhhhhh num_pages, record inserted %d %s \n\n\n\n",pt->header.num_pages, record);
+		(pt->header.num_pages) ++; 
 		pt->header.pageDirectory[pt->header.num_pages - 3] = 0;
 		pt->dirty = TRUE;
 		/* printf("\nNEW DATA PAGE ALLOCATED, now %d datapages\n", pt->header.num_pages -2);
