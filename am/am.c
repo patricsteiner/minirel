@@ -179,7 +179,7 @@ int AM_CreateIndex(char *fileName, int indexNo, char attrType, int attrLength, b
 	pt->fd = fd;
 	pt->valid = TRUE;
 	pt->dirty = TRUE;
-	pt->racine_page = 2;
+	pt->racine_page = -1;
 	/* Since on a internal node, there  is 3 int(is_leaf, pagenum of parent, number of key*/ 
 	pt->fanout = ( (PF_PAGE_SIZE ) - (3+1)*sizeof(int)) / (sizeof(int) + attrLength);
 	pt->header.indexNo = indexNo;
@@ -195,11 +195,11 @@ int AM_CreateIndex(char *fileName, int indexNo, char attrType, int attrLength, b
 	if (pagenum != 1)
 		return AME_PF;
 
-	memcpy((char*) headerbuf, (int*) &pt->header.indexNo, sizeof(int));
-	memcpy((char*) headerbuf, (int*) &pt->header.attrType, sizeof(char));
-	memcpy((char*) headerbuf, (int*) &pt->header.attrLength, sizeof(int));
-	memcpy((char*) headerbuf, (int*) &pt->header.height_tree, sizeof(int));
-	memcpy((char*) headerbuf, (int*) &pt->header.nb_leaf, sizeof(int));
+	memcpy((char*) (headerbuf), (int*) &pt->header.indexNo, sizeof(int));
+	memcpy((char*) (headerbuf + sizeof(int)), (int*) &pt->header.attrType, sizeof(char));
+	memcpy((char*) (headerbuf + sizeof(int) + sizeof(char)), (int*) &pt->header.attrLength, sizeof(int));
+	memcpy((char*) (headerbuf + 2*sizeof(int) + sizeof(char)), (int*) &pt->header.height_tree, sizeof(int));
+	memcpy((char*) (headerbuf + 3*sizeof(int) + sizeof(char)), (int*) &pt->header.nb_leaf, sizeof(int));
 
 
 	pt->valid = FALSE;
@@ -270,15 +270,16 @@ int AM_OpenIndex(char *fileName, int indexNo){
 	
 	memcpy(pt->iname, new_filename, sizeof(new_filename));
 	free(new_filename);
-	memcpy( (int*) &pt->header.indexNo,(char*) headerbuf, sizeof(int));
-	memcpy((int*) &pt->header.attrType,(char*) headerbuf,  sizeof(char));
-	memcpy( (int*) &pt->header.attrLength, (char*) headerbuf,sizeof(int));
-	memcpy((int*) &pt->header.height_tree,(char*) headerbuf,  sizeof(int));
-	memcpy( (int*) &pt->header.nb_leaf,(char*) headerbuf, sizeof(int));
+	memcpy( (int*) &pt->header.indexNo,(char*) (headerbuf), sizeof(int));
+	memcpy((int*) &pt->header.attrType,(char*) (headerbuf + sizeof(int)),  sizeof(char));
+	memcpy( (int*) &pt->header.attrLength, (char*) (headerbuf + sizeof(int) + sizeof(char)),sizeof(int));
+	memcpy((int*) &pt->header.height_tree,(char*) (headerbuf + 2*sizeof(int) + sizeof(char)),  sizeof(int));
+	memcpy( (int*) &pt->header.nb_leaf,(char*) (headerbuf + 3*sizeof(int) + sizeof(char)), sizeof(int));
 
 	pt->fanout = ( (PF_PAGE_SIZE ) - (3+1)*sizeof(int)) / (sizeof(int) + pt->header.attrLength);
-	
-	
+
+
+
 	/*increment the size of the table*/
 	AMitab_length ++;
 	fileDesc = AMitab_length -1 ;
@@ -315,14 +316,12 @@ int AM_CloseIndex(int fileDesc){
 
 
 		/* write the header  */
+		memcpy((char*) (headerbuf), (int*) &pt->header.indexNo, sizeof(int));
+		memcpy((char*) (headerbuf + sizeof(int)), (int*) &pt->header.attrType, sizeof(char));
+		memcpy((char*) (headerbuf + sizeof(int) + sizeof(char)), (int*) &pt->header.attrLength, sizeof(int));
+		memcpy((char*) (headerbuf + 2*sizeof(int) + sizeof(char)), (int*) &pt->header.height_tree, sizeof(int));
+		memcpy((char*) (headerbuf + 3*sizeof(int) + sizeof(char)), (int*) &pt->header.nb_leaf, sizeof(int));
 		
-		memcpy((char*) pagebuf, (int*) &pt->header.indexNo, sizeof(int));
-		memcpy((char*) pagebuf, (int*) &pt->header.attrType, sizeof(char));
-		memcpy((char*) pagebuf, (int*) &pt->header.attrLength, sizeof(int));
-		memcpy((char*) pagebuf, (int*) &pt->header.height_tree, sizeof(int));
-		memcpy((char*) pagebuf, (int*) &pt->header.nb_leaf, sizeof(int));
-
-
 		/* the page is dirty now ==> last arg of PF_UnpinPage ("dirty") set to one */
 		error = PF_UnpinPage(pt->fd, 1, 1);
 		if(error != PFE_OK) PF_ErrorHandler(error);
@@ -360,7 +359,106 @@ int AM_CloseIndex(int fileDesc){
 	return AME_OK;
 }
 
+
+
+/* return AME_OK if succeed
+ *
+ */
 int AM_InsertEntry(int fileDesc, char *value, RECID recId){
+	int leafNum;
+	int root_pagenum;
+	int valuePos;
+	int attrType;
+	int num_keys;
+	int error;
+	int offset;
+	char attrType;
+	int* visitedNode; /* array of node visited : [root, level1, , ] */
+	char* pagebuf;
+
+	pt = AMitab + fileDesc;
+
+	/* CASE : NO ROOT */
+	if (pt->racine_page == -1){
+		/* Create a tree */
+		error = PF_AllocPage(pt->fd, &root_pagenum, pagebuf);
+		if (error != PFE_OK)
+			PF_ErrorHandler(error);
+
+		/* Write the node into the buffer: what kind of node */
+		offset = 0;
+		memcpy((char*)(headerbuf + offset),(bool_t *) TRUE, sizeof(bool_t)); /* is leaf */
+		offset += sizeof(bool_t);
+		memcpy((char*)(headerbuf + offset),(int *) 1, sizeof(int)); /* Number of key*/
+		offset += sizeof(int);
+		memcpy((char*)(headerbuf + offset ),(int *) FIRST_LEAF, sizeof(int)); /* previous leaf pagenum */
+		/* sizeof( recid) : space for LAST RECID */
+		offset += sizeof(int);
+		offset += sizeof(RECID);
+		memcpy((char*)(headerbuf offset),(int *) LAST_LEAF, sizeof(int)); /* next leaf pagenum */
+		offset += sizeof(int);
+		memcpy((char*)(headerbuf + offset), (RECID*) recId, sizeof(RECID));
+		offset += sizeof(RECID);
+		
+		switch (fd->header.attrType){
+			case 'c':
+				memcpy((char*)(headerbuf + offset), (char*) value, fd->header.attrLength);
+				break;
+			case 'i':
+				memcpy((char*)(headerbuf + offset), (int*) value, fd->header.attrLength);
+				break;
+			case 'f':
+				memcpy((char*)(headerbuf + offset), (float*) value, fd->header.attrLength);
+				break;
+			default:
+				return AME_INVALIDATTRYPE;
+				break;
+
+		}
+
+		/* change the AMi_elem */
+		pt->racine_page = 2:
+		pt->header.height_tree = 1;
+		pt->header.nb_leaf = 1;
+		pt->dirty = TRUE;
+
+		/* Unpin page */
+		error = PF_UnpinPage(pt->fd, root_pagenum, 1);
+		if (error != PFE_OK)
+			PF_ErrorHandler(error);
+
+		return AME_OK
+	}
+
+
+	/* FIND LEAF */
+
+	visitedNode = malloc( pt->height * sizeof(int));
+	
+	/* valuePos < 0 : error,  valuePos >= 0 : position where to insert on the page */
+	valuePos= AM_FindLeaf(fileDesc, value, visitedNode);
+	if(valuePos < 0):
+		return AME_KEYNOTFOUND;
+
+	leafNum = visitedNode[pt->height];
+	error = PF_GetThisPage(pt->fd, leafNum, &pagebuf);
+	if (error != PFE_OK)
+		PF_ErrorHandler(error);
+
+	memcpy((int*) num_keys, (char*)(pagebuf + sizeof(bool_t)), sizeof(int));
+
+	/* CASE : STILL SOME PLACE */
+	if( num_keys < fanout){
+		/* Insert into leaf without splitting */
+		
+	}
+	/* CASE : NO MORE PLACE */
+	else{
+		/* Insert into leaf after splitting */
+	}
+
+
+
 	return AME_OK;
 }
 

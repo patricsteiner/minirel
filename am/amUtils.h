@@ -1,6 +1,10 @@
 #ifndef __AMUTILS_H__
 #define __AMUTILS_H__
 
+#define ROOT -1
+#define FIRST_LEAF -1
+#define LAST_LEAF -1
+
 #include "minirel.h"
 
 typedef struct AMHeader{
@@ -85,8 +89,8 @@ typedef struct ccoupleLeaf{
 typedef struct inode{
 	bool_t is_leaf;            /* first element checked, is the boolean a node ? */ 
 	int num_keys;		/* number of key into the node*/
-	icouple* couple;		
 	int last_pt;            /* there is one more pointer than keys */
+	icouple* couple;		
 	
 	
 } inode;
@@ -94,8 +98,8 @@ typedef struct inode{
 typedef struct fnode{
 	bool_t is_leaf;            /* first element checked, is the boolean a node ? */ 
 	int num_keys;		/* number of keys written into the node at a certain */ 
-	fcouple* couple;		/* offset= sizeof(bool_t) + sizeof(int) + key_position* sizeof(couple)*/
 	int last_pt;            /* there is one more pointer than keys */
+	fcouple* couple;		/* offset= sizeof(bool_t) + sizeof(int) + key_position* sizeof(couple)*/
 	
 	
 } fnode;
@@ -103,8 +107,8 @@ typedef struct fnode{
 typedef struct cnode{
 	bool_t is_leaf;            /* first element checked, is the boolean a node ? */ 
 	int num_keys;		/* number of key into the node*/
-	ccouple* couple;		
 	int last_pt;            /* there is one more pointer than keys */
+	ccouple* couple;		
 	
 	
 } cnode;
@@ -114,27 +118,27 @@ typedef struct ileaf{
 	bool_t is_leaf;            /* first element checked, is the boolean a node */ 
 	int num_keys;		/* number of key into the node*/ 
 	int previous;           /* pagenum of the previous page */
-	icoupleLeaf* couple;     /* a pointer on the beginning of the array of couple */
 	RECID last_recid;            /* there is one more pointer than keys */
 	int next; /* pagenum of the next page */
+	icoupleLeaf* couple;     /* a pointer on the beginning of the array of couple */
 } ileaf;
 
 typedef struct fleaf{
 	bool_t is_leaf;            /* first element checked, is the boolean a node */ 
 	int num_keys;		/* number of key into the node*/ 
 	int previous;           /* pagenum of the previous page */
-	fcoupleLeaf* couple;     /* a pointer on the beginning of the array of couple */
 	RECID last_recid;            /* there is one more pointer than keys */
 	int next; /* pagenum of the next page */
+	fcoupleLeaf* couple;     /* a pointer on the beginning of the array of couple */
 } fleaf;
 
 typedef struct cleaf{
 	bool_t is_leaf;            /* first element checked, is the boolean a node */ 
 	int num_keys;		/* number of key into the node*/ 
 	int previous;           /* pagenum of the previous page */
-	ccoupleLeaf* couple;     /* a pointer on the beginning of the array of couple */
 	RECID last_recid;            /* there is one more pointer than keys */
 	int next; /* pagenum of the next page */
+	ccoupleLeaf* couple;     /* a pointer on the beginning of the array of couple */
 } cleaf;
 
 /*
