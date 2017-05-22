@@ -7,7 +7,7 @@ typedef struct AMHeader{
      int     indexNo;           /* id of this index for the file   */
      char    attrType;          /* 'c', 'i', or 'f'                */
      int     attrLength;        /* 4 for 'i' or 'f', 1-255 for 'c' */
-     int     height_tree;    /*height of the b+tree*/
+     int     height_tree;    /*height of the b+tree, number of levels (if only root ==> one level)*/
      int     nb_leaf;        /* number of leaf */
 } AMHeader;
 
@@ -38,42 +38,104 @@ typedef struct AMitab_ele{
  * first pointer refers to lower node (with key less than the smallest key
  * in the keys array.)
  */
-typedef struct couple{
-	int pagenum; 
-	typedef union key{
-	   float f;
-	   char* c; /* variable length, consequently has to be malloc */
-	   int i;
-	}key;
-	
-}couple; 
 
-typedef struct node{
+/* couples pointer,key of an internal node */ 
+typedef struct icouple{
+	int pagenum; 
+	int key;
+	
+	
+}icouple; 
+typedef struct fcouple{
+	int pagenum; 
+	float key;
+	
+	
+}fcouple; 
+
+typedef struct ccouple{
+	int pagenum; 
+	char*key; /* variable length, consequently has to be malloc */
+	
+	
+}ccouple; 
+
+/* couples of leaf*/
+typedef struct icoupleLeaf{
+	RECID recid; 
+	   int key;
+	
+}icoupleLeaf;
+
+typedef struct fcoupleLeaf{
+	RECID recid; 
+	 float  key;
+	
+}fcoupleLeaf;
+
+typedef struct ccoupleLeaf{
+	RECID recid; 
+	 char *  key;
+	
+}ccoupleLeaf;
+/* 3 kind of nodes because three different key types*/
+/* it is important to notice that those structs are only used to get element from a buffer page where a not is written */
+/* this is like a skeleton, that we fill when we need */
+
+typedef struct inode{
 	bool_t is_leaf;            /* first element checked, is the boolean a node ? */ 
 	int num_keys;		/* number of key into the node*/
-	couple*	couple;		/* all the couple key + pointer ( the page number of the child) , has to be malloc */
+	icouple* couple;		
 	int last_pt;            /* there is one more pointer than keys */
 	
 	
-} node;
-typedef struct coupleLeaf{
-	RECID recid; 
-	typedef union key{
-	   float f;
-	   char* c; /* variable length, consequently has to be malloc */
-	   int i;
-	}key;
+} inode;
+
+typedef struct fnode{
+	bool_t is_leaf;            /* first element checked, is the boolean a node ? */ 
+	int num_keys;		/* number of keys written into the node at a certain */ 
+	fcouple* couple;		/* offset= sizeof(bool_t) + sizeof(int) + key_position* sizeof(couple)*/
+	int last_pt;            /* there is one more pointer than keys */
 	
-}coupleLeaf;
 	
-typedef struct leaf{
+} fnode;
+
+typedef struct cnode{
 	bool_t is_leaf;            /* first element checked, is the boolean a node ? */ 
 	int num_keys;		/* number of key into the node*/
+	ccouple* couple;		
+	int last_pt;            /* there is one more pointer than keys */
+	
+	
+} cnode;
+
+/* struct of leaves, also only use to read all informations of the pagebuf where the leaf is stored */	
+typedef struct ileaf{
+	bool_t is_leaf;            /* first element checked, is the boolean a node */ 
+	int num_keys;		/* number of key into the node*/ 
 	int previous;           /* pagenum of the previous page */
-	coupleLeaf* couple;		/* all the couple key + pointer ( the page number of the child) , has to be malloc */
+	icoupleLeaf* couple;     /* a pointer on the beginning of the array of couple */
 	RECID last_recid;            /* there is one more pointer than keys */
 	int next; /* pagenum of the next page */
-} leaf;
+} ileaf;
+
+typedef struct fleaf{
+	bool_t is_leaf;            /* first element checked, is the boolean a node */ 
+	int num_keys;		/* number of key into the node*/ 
+	int previous;           /* pagenum of the previous page */
+	fcoupleLeaf* couple;     /* a pointer on the beginning of the array of couple */
+	RECID last_recid;            /* there is one more pointer than keys */
+	int next; /* pagenum of the next page */
+} fleaf;
+
+typedef struct cleaf{
+	bool_t is_leaf;            /* first element checked, is the boolean a node */ 
+	int num_keys;		/* number of key into the node*/ 
+	int previous;           /* pagenum of the previous page */
+	ccoupleLeaf* couple;     /* a pointer on the beginning of the array of couple */
+	RECID last_recid;            /* there is one more pointer than keys */
+	int next; /* pagenum of the next page */
+} cleaf;
 
 /*
 Page 0 : PFHeader Page
@@ -84,6 +146,11 @@ Each page is a node (starting from page 2)
 
 /*more errors*/
 #define	AME_INDEXNOTOPEN		(-25)
+#define AME_WRONGROOT                   (-26)
+#define AME_ATTRTYPE			(-27) /* Invalid attribute type in file scan*/
+#define AME_ATTRLENGTH			(-28) /* Invalid attribute length */
+#define AME_ATTROFFSET   		(-29) /* Invalid attribute offset */
+#define AME_OPERATOR			(-30) /* Invalid Operator in file scan */
 
 
 
