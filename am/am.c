@@ -422,6 +422,8 @@ int AM_DeleteEntry(int fileDesc, char *value, RECID recId){
 int AM_OpenIndexScan(int AM_fd, int op, char *value){
 	AMitab_ele* amitab_ele;
 	AMscantab_ele* amscantab_ele;
+	int key, error, tab, val;
+	val = -2147483648; /* = INTEGER_MINVALUE, used if op is NE_OP, to just get leftmost element */
 	
 	if (AM_fd < 0 || AM_fd >= AMitab_length) return AME_FD;
 	if (op < 1 || op > 6) return AME_INVALIDOP;
@@ -436,9 +438,14 @@ int AM_OpenIndexScan(int AM_fd, int op, char *value){
 	/* copy the values */
 	memcpy((char*) amscantab_ele->value, (char*) value, amitab_ele->header.attrLength);
 	amscantab_ele->op = op;
-	amscantab_ele->current_page = /* TODO if op= NE, just use smaller than a million or sth */
-	amscantab_ele->current_key = /* TODO */
-	amscantab_ele->current_num_keys = /* TODO */
+
+
+	key = AM_FindLeaf(AM_fd, value, &tab);
+	if (op == NE_OP) key = AM_FindLeaf(AM_fd, (char*) &val, &tab); /* use val if NE_OP, to get leftmost leaf */
+
+	amscantab_ele->current_page = tab[AMitab_ele->header.height_tree];
+	amscantab_ele->current_key = key;
+	amscantab_ele->current_num_keys = 0; /* this is set in findNextEntry */
 	amscantab_ele->AMfd = AM_fd;
 	amscantab_ele->valid = TRUE;
 	
@@ -469,17 +476,16 @@ RECID AM_FindNextEntry(int scanDesc) {
 	AMitab_ele* amitab_ele;
 	AMscantab_ele* amscantab_ele;
 	char* pagebuf;
-	/*Node node;*/
-	int error, current_key, current_page, direction, new_page, cmp_prev, page, offset;
+	int error, current_key, current_page, direction, tmp_page, tmp_key, offset;
 	float f;
 	int i;
 	char c[255];
 	ileaf ileaf;
 	fleaf fleaf;
 	cleaf cleaf;
+	bool_t found;
 
-	/*cmp_prev = -1;*/
-
+	found = FALSE;
 
 	amitab_ele = AMitab + AM_fd;
 	if (amitab_ele->valid != TRUE) return AME_INDEXNOTOPEN;
@@ -491,72 +497,76 @@ RECID AM_FindNextEntry(int scanDesc) {
 	error = PF_GetThisPage(amitab_ele->fd, amscantab_ele->current, &pagebuf);
 	if(error != PFE_OK) PF_ErrorHandler(error);
 
-	switch (amitab_ele->header.attrType) {
-		case 'i':
-			ileaf.previous = pagebuf + sizeof(bool_t) + sizeof(int); /* or sth, fill al fields */
-			//memcpy((ileaf*) &ileaf, (char*) (pagebuf), sizeof(inode));
+	/* read num_keys and write it in scantab_ele */
+	memcpy((int*) &(amscantab_ele->current_num_keys), (int*) pagebuf + sizeof(bool_t), sizeof(int));
 
-			break;
-		case 'f':
-			break;
-		case 'c':
-			break;
-	}
+//	switch (amitab_ele->header.attrType) {
+//		case 'i':
+//			ileaf.previous = pagebuf + sizeof(bool_t) + sizeof(int); /* or sth, fill all fields */
+//			//memcpy((ileaf*) &ileaf, (char*) (pagebuf), sizeof(inode));
+//			break;
+//		case 'f':
+//			break;
+//		case 'c':
+//			break;
+//	}
 	
-	direction = 1;
-	if (amscantab_ele->op == LT_OP || amscantab_ele->op == LE_OP) direction *= -1; /* iterate to left if less operation */
-	switch (op) {
-		case EQ_OP: /* fallthrough */
-		case NE_OP: /* fallthrough */
-		case GT_OP: /* fallthrough */
-		case GE_OP: direction = 1; break;
-		case LT_OP: /* fallthrough */
-		case LE_OP: direction = -1; break;
+	/* iterate to right-to-left if less-operation */
+	direction = (amscantab_ele->op == LT_OP || amscantab_ele->op == LE_OP) ? -1 : 1;
 	
-	}
+//	switch (op) {
+//		case EQ_OP: /* fallthrough */
+//		case NE_OP: /* fallthrough */
+//		case GT_OP: /* fallthrough */
+//		case GE_OP: direction = 1; break;
+//		case LT_OP: /* fallthrough */
+//		case LE_OP: direction = -1; break;
+//	}
 
-	/* while there is a next page */
-	while (amscantab_ele->current_page > -1) {
-		/* iterate through keys while there is a next key */
-		while (amscantab_ele->current_key > 0 && amscantab_ele->current_key < amscantab_ele->current_num_keys) {
+	/* while there is a next page (if there is non, it is set to LAST_PAGE resp. FIRST_PAGE = -1) */
+	while (amscantab_ele->current_page >= 0) {
+		/* iterate through keys while there is a next key and we found no result */
+		while (found == FALSE && amscantab_ele->current_key > 0 && amscantab_ele->current_key < amscantab_ele->current_num_keys) {
 			/* compare and return if match */
 			switch (amitab_ele->header.attrType) {
 			case 'i': /* fallthrough */
 			case 'f': 
-				if (compareNumber(, amscantab_ele->op) == TRUE) {
-					/* fill recid and return */
-					return recid;
-				}
+				if (compareNumber(, amscantab_ele->op) == TRUE) found = TRUE;
 				break;
 			case 'c':
-				if (compareChars(, amscantab_ele->op) == TRUE) {
-					/* fill recid and return */
-					return recid;
-				}
+				if (compareChars(, amscantab_ele->op) == TRUE) found = TRUE;
 				break;
 			}
-		
 			amscantab_ele->current_key += direction;
 		}
 
-		/* update amscantab_ele by reading next/prev page. set page to -1 if EOF. */
+		tmp_page = amscantab_ele->current_page;
+		/* update amscantab_ele by reading next/prev page. the next/prev page will be -1 if its nonexistent. */
 		if (direction < 0) {
-			new_page = pagebuf + sizeof(bool_t) + sizeof(int)*2; /*TODO: adjust accordingly */
+			memcpy(&(amscantab_ele->current_page), (int*) (pagebuf + sizeof(bool_t) + sizeof(int)), sizeof(int));
 		} else {
-			new_page = pagebuf + sizeof(bool_t) + sizeof(int)*2 + ; /*TODO: adjust accordingly */
-			/* or use ileaf? set -1 if EOF */
+			memcpy(&(amscantab_ele->current_page), (int*) (pagebuf + sizeof(bool_t) + sizeof(int)*2), sizeof(int));
 		}
 		
-		error = PF_UnpinPage(amitab_ele->fd, amscantab_ele->current, 0);
+		error = PF_UnpinPage(amitab_ele->fd, tmp_page, 0);
 		if(error != PFE_OK) PF_ErrorHandler(error);
-		amscantab_ele->current_page = new_page;
 		error = PF_GetThisPage(amitab_ele->fd, amscantab_ele->current_page, &pagebuf);
 		if(error != PFE_OK) PF_ErrorHandler(error);
+		
 		if (direction < 0) {
-			amscantab_ele->current_key = /*TODO */
+			/* read num_keys and write it in scantab_ele */
+			memcpy((int*) &(amscantab_ele->current_key), (int*) pagebuf + sizeof(bool_t), sizeof(int));
 		} else {
-
+			/* if iterating right-to-left, first key on next page will just be 0 */
+			amscantab_ele->current_key = 0;
 		}
+
+		/* return here, so the update and cleanup above is done in every case */
+		if (found == TRUE) {
+			recid.pagenum = /* TODO */
+			recid.recnum = /* TODO */
+			return recid;
+		}	
 	}
 
 
@@ -631,8 +641,8 @@ RECID AM_FindNextEntry(int scanDesc) {
 	error = PF_UnpinPage(amitab_ele->fd, amscantab_ele->current, 0);
 	if(error != PFE_OK) PF_ErrorHandler(error);
 
-	recid.recnum = -150;
-	recid.pagenum = -150;
+	recid.recnum = AME_EOF;
+	recid.pagenum = AME_EOF;
 
 	return recid;
 }
