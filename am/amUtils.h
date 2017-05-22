@@ -8,11 +8,13 @@
 #include "minirel.h"
 
 typedef struct AMHeader{
-     int     indexNo;           /* id of this index for the file   */
-     char    attrType;          /* 'c', 'i', or 'f'                */
-     int     attrLength;        /* 4 for 'i' or 'f', 1-255 for 'c' */
-     int     height_tree;    /*height of the b+tree, number of levels (if only root ==> one level)*/
-     int     nb_leaf;        /* number of leaf */
+    int     indexNo;           /* id of this index for the file   */
+    char    attrType;          /* 'c', 'i', or 'f'                */
+    int     attrLength;        /* 4 for 'i' or 'f', 1-255 for 'c' */
+    int     height_tree;    /*height of the b+tree, number of levels (if only root ==> one level)*/
+    int     nb_leaf;        /* number of leaf */
+	int 	racine_page;        /* the page number where the racine is */
+	int 	num_pages;	 	
 } AMHeader;
 
 
@@ -20,8 +22,8 @@ typedef struct AMitab_ele{
 	bool_t valid; 		/* set to TRUE when a file is open */
 	int fd;			/* pf file descriptor */
 	char iname[255+4];      /* index name */
-	int racine_page;        /* the page number where the racine is */
-	int fanout;             /* max number of key per internal node (since each page is a node)*/
+	int fanout;             /* max number of pointer per internal node (since each page is a node)*/
+	int fanout_leaf;		/* max number of recid into a leaf */
 	AMHeader header;	/* heap file header */
 	bool_t dirty;		/* TRUE if HF header has changed */
 	 
@@ -118,7 +120,6 @@ typedef struct ileaf{
 	bool_t is_leaf;            /* first element checked, is the boolean a node */ 
 	int num_keys;		/* number of key into the node*/ 
 	int previous;           /* pagenum of the previous page */
-	RECID last_recid;            /* there is one more pointer than keys */
 	int next; /* pagenum of the next page */
 	icoupleLeaf* couple;     /* a pointer on the beginning of the array of couple */
 } ileaf;
@@ -127,7 +128,6 @@ typedef struct fleaf{
 	bool_t is_leaf;            /* first element checked, is the boolean a node */ 
 	int num_keys;		/* number of key into the node*/ 
 	int previous;           /* pagenum of the previous page */
-	RECID last_recid;            /* there is one more pointer than keys */
 	int next; /* pagenum of the next page */
 	fcoupleLeaf* couple;     /* a pointer on the beginning of the array of couple */
 } fleaf;
@@ -136,7 +136,6 @@ typedef struct cleaf{
 	bool_t is_leaf;            /* first element checked, is the boolean a node */ 
 	int num_keys;		/* number of key into the node*/ 
 	int previous;           /* pagenum of the previous page */
-	RECID last_recid;            /* there is one more pointer than keys */
 	int next; /* pagenum of the next page */
 	ccoupleLeaf* couple;     /* a pointer on the beginning of the array of couple */
 } cleaf;
