@@ -457,10 +457,7 @@ int AM_OpenIndex(char *fileName, int indexNo){
 	pt->fd = pffd;
 	pt->valid = TRUE;
 	pt->dirty = FALSE;
-<<<<<<< HEAD
-	pt->header.racine_page = 2;
-=======
->>>>>>> a3b2424e2cf9f5cf36bd01a5ab8326d8a4ab97d1
+
 	
 	memcpy(pt->iname, new_filename, sizeof(new_filename));
 	free(new_filename);
