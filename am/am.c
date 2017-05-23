@@ -546,7 +546,8 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 		return AME_KEYNOTFOUND;
 	len_visitedNode = pt->header.height_tree;
 	leafNum = visitedNode[len_visitedNode];
-	leafNum = 2;
+	
+	/*leafNum = 2; */
 
 	error = PF_GetThisPage(pt->fd, leafNum , &pagebuf);
 	if (error != PFE_OK)
@@ -554,6 +555,8 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 
 	memcpy((int*) &num_keys, (char*)(pagebuf + sizeof(bool_t)), sizeof(int));
 
+	couple_size = sizeof(RECID) + pt->header.attrLength;
+	
 	/* CASE : STILL SOME PLACE */
 	if( num_keys < pt->fanout_leaf - 1){
 		printf("Still some space into the leaf\n");
@@ -568,19 +571,11 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 		 * size = (num_keys - pos) * (sizeofcouple)
 		 with sizeof couple = sizeof recid + attrLength
 		 */
-		couple_size = sizeof(RECID) + pt->header.attrLength;
-		/*tempbuffer = malloc(couple_size*(num_keys - pos));*/
 		
 		memmove((char*) (pagebuf + offset + couple_size), (char*) (pagebuf + offset), couple_size*(num_keys - pos));
-		/*
-		memcpy((char*) tempbuffer, (char*) (pagebuf + offset), couple_size*(num_keys - pos));
-		memcpy((char*) (pagebuf + offset + couple_size), (char*) tempbuffer, couple_size*(num_keys - pos));
-		*/
 		memcpy((char *) (pagebuf + offset ), (RECID*) &recId, sizeof(RECID));
 		offset += sizeof(RECID);
 		
-		/*free(tempbuffer);
-		*/
 		switch (pt->header.attrType){
 			case 'c':
 				memcpy((char*)(pagebuf + offset), (char*) value, pt->header.attrLength);
@@ -599,7 +594,6 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 		num_keys++;
 		memcpy((char*)(pagebuf + sizeof(bool_t)), (int*) &num_keys, sizeof(int));
 
-		/* Unpin page */
 		error = PF_UnpinPage(pt->fd, leafNum , 1);
 		if (error != PFE_OK)
 			PF_ErrorHandler(error);
@@ -611,8 +605,23 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 	/* CASE : NO MORE PLACE */
 	else{
 		printf("No more space in the leaf\n");
+		
+		tempbuffer = malloc(couple_size*pt->fanout_leaf);
+		offset = sizeof(bool_t) + 3 * sizeof(int);
+
+		/* cpy in the buffer the part of the node before the key , then the key, then the part after */
+		memcpy((char*) tempbuffer, (char*) (pagebuf + offset), couple_size*pos);
+		offset += couple_size * pos;
+		/*
+		memcpy((char*) (tempbuffer + offset), (char*) (pagebuf + offset), couple_size*pos); /*cpy the couple */
+/*
+		memcpy((char*) (pagebuf + offset + couple_size), (char*) tempbuffer, couple_size*(num_keys - pos));
+		*/
+		free(tempbuffer);
+		
 		/* Insert into leaf after splitting */
 		/* ALGO
+		 *  Create a tempbuffer with the inserted value
 		 *  copy from the pos given to a temp pointer the value splitted
 		 * 	get the key to move up 
 		 *  Should we reset the part of the node which is moved ?
