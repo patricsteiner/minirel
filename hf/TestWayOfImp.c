@@ -28,9 +28,11 @@ char pfpagebuf[4092];
 void sum( char* valuei, char* valuef, char* valuec){
 	int a=350;
 	float f=1.0;
-	char string[10];
-	memcpy((char*) string, "record11",10);
-	printf( "valuef %f \n", *((float*)valuef));
+	float f2;
+	char string[100];
+	sprintf((char*) string, "entry%d",102);
+	memcpy((float*) &f2, valuef, sizeof(float));
+	printf( "valuef %f , memcpy %f\n", *((float*)valuef),f2);
 	printf("string %s , %d\n ", string, sizeof(string));
 	printf(" size float %d \n", sizeof(float));
 	printf( "res de comparaison %d \n ", strncmp((char*) &a, valuei, 4));
@@ -79,7 +81,7 @@ int main (){
 	printf("last value %d \n", it[49]);
 
 	
-	sprintf((char*) string, "record%d", 10);
+	sprintf((char*) string, "entry%d", 100);
 	valuef=50.0;
 	value=300;
        
