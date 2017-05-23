@@ -168,5 +168,6 @@ Each page is a node (starting from page 2)
 #define AME_ATTROFFSET   		(-29) /* Invalid attribute offset */
 #define AME_OPERATOR			(-30) /* Invalid Operator in file scan */
 #define AME_SCANNOTOPEN         (-31)
+#define AME_NOINSERTION			(-32)
 
 #endif 
