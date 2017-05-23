@@ -625,11 +625,13 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 
 	/******************ADD PARAMETER checking **********/
 	pt = AMitab + fileDesc;
+
 	/* CASE : NO ROOT */
 	if (pt->header.racine_page == -1){
 		
 		/* Create a tree */
 		error = PF_AllocPage(pt->fd, &root_pagenum, &pagebuf);
+		
 		if (error != PFE_OK)
 			PF_ErrorHandler(error);
 
@@ -695,11 +697,11 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 	
 	/* pos < 0 : error,  pos >= 0 : position where to insert on the page */
 	pos = AM_FindLeaf(fileDesc, value, visitedNode);
-	
+	printf("return of FindLeaf %d, page of leaf %d, root %d, sizeof tab %d \n", pos, visitedNode[0], visitedNode[0],sizeof(visitedNode));
 	if(pos < 0)
 		return AME_KEYNOTFOUND;
 
-	leafNum = visitedNode[pt->header.height_tree];
+	leafNum = visitedNode[(pt->header.height_tree)-1];
 	
 	error = PF_GetThisPage(pt->fd, leafNum, &pagebuf);
 	if (error != PFE_OK)
@@ -711,6 +713,7 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 	/* CASE : STILL SOME PLACE */
 	if( num_keys < pt->fanout_leaf - 1){
 		/* Insert into leaf without splitting */
+		couple_size = sizeof(RECID) + pt->header.attrLength;
 		offset = sizeof(bool_t) + 3 * sizeof(int) + pos*couple_size;
 		/* ex : insert 3 
 		 * num_keys = 4
@@ -721,7 +724,7 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 		 * size = (num_keys - pos) * (sizeofcouple)
 		 with sizeof couple = sizeof recid + attrLength
 		 */
-		couple_size = sizeof(RECID) + pt->header.attrLength;
+		
 		memmove((char*) (pagebuf + offset + couple_size), (char*) (pagebuf + offset), couple_size*(num_keys - pos));
 		
 		memcpy((char *) (pagebuf + offset ), (RECID*) &recId, sizeof(RECID));
@@ -746,7 +749,7 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 		memcpy((char*)(pagebuf + sizeof(bool_t)), (int*) &num_keys, sizeof(int));
 
 		/* Unpin page */
-		error = PF_UnpinPage(pt->fd, root_pagenum, 1);
+		error = PF_UnpinPage(pt->fd, leafNum, 1);
 		if (error != PFE_OK)
 			PF_ErrorHandler(error);
 

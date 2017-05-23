@@ -80,7 +80,7 @@ void amtest1()
    printf("bool t taille %d\n", sizeof(bool_t) );
    AM_PrintTable();
    /*Inserting value in the HF file and the B+ Tree  */
-      value = 98;
+      value = 10;
       while (value < 100)
       {
          sprintf(string_val, "entry%d", value);
