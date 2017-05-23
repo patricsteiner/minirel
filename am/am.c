@@ -1234,8 +1234,8 @@ RECID AM_FindNextEntry(int scanDesc) {
 				break;
 			case 'c':
 				memcpy((char*) &c1, (char*)&(amscantab_ele->value), amitab_ele->header.attrLength);
-				/* TODO: next line causes segfault. idk how to get these values. */
-				c2 = cnod.couple + amscantab_ele->current_key * (sizeof(int) + amitab_ele->header.attrLength) + sizeof(int);
+				/* TODO: next line causes segfault. maybe bullshit is copied to current_key? */
+				c2 = cnod.couple + amscantab_ele->current_key * (sizeof(RECID) + amitab_ele->header.attrLength) + sizeof(int);
 				if (compareChars(c1, c2, amscantab_ele->op, amitab_ele->header.attrLength) == TRUE) found = TRUE;
 				amscantab_ele->current_key += direction;
 				break;
