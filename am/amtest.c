@@ -81,7 +81,9 @@ void amtest1()
    AM_PrintTable();
    /*Inserting value in the HF file and the B+ Tree  */
       value = 10;
+s
       while (value < 700)
+
       {
          string_val=value;
          /* Notice the recid value being inserted is trash.    */ 
