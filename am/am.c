@@ -150,123 +150,208 @@ void print_page(int fileDesc, int pagenum){
  * the fanout is also given, in case of the couple contain the last key, then the last pointer of the node has to be taken
  * this function is created to avoid switch-case inside a loop
  */
-bool_t AM_CheckPointer(int pos, int fanout, char* value, char attrType, int attrLength, char* pagebuf){
-	/*use to get any type of node and leaf from a buffer page*/
-	inode inod;
-	fnode fnod;
-	cnode cnod;
-	/*ileaf* ilcast;
-	fleaf* flcast;
-	cleaf* clcast;*/
-	
-	switch(attrType){
-		case 'i': 
-			  /* fill the struct using offset and cast operations */
-			  inod.num_keys= *((int*)pagebuf+sizeof(bool_t));
-			  inod.couple=(icouple *)pagebuf+sizeof(bool_t)+sizeof(int);
-			  inod.last_pt=*((int*)(pagebuf+sizeof(bool_t)+(inod.num_keys)*2*sizeof(int)+sizeof(int)));
-			  
-			  if( pos<fanout-1){ /* fanout -1 is the number of couple (pointer, key)*/
-				if( strncmp((char*) &(inod.couple[pos].key), (char*) value,  sizeof(int)) <0) return inod.couple[pos].pagenum;
-				return 0;
-			   }
-			   else if( pos=fanout-1) {
-			   	if( strncmp((char*) &(inod.couple[pos].key), (char*) value,  sizeof(int)) >=0) return inod.last_pt;
-				return 0;
-			   }
-			   else {
-				printf( "DEBUG: pb with fanout or position given \n");
-				return -1;
-			   }
-			   break;
+bool_t AM_CheckPointer(int pos, int fanout, char* value, char attrType, int attrLength,char* pagebuf){
+    /*use to get any type of node and leaf from a buffer page*/
+    inode inod;
+    fnode fnod;
+    cnode cnod;
 
-		case 'c':  /* fill the struct using offset and cast operations */
-			  cnod.num_keys= *((int*)pagebuf+sizeof(bool_t));
-			  cnod.couple=(ccouple*)pagebuf+sizeof(bool_t)+sizeof(int);
-			  cnod.last_pt=*((int*)(pagebuf+sizeof(bool_t)+(cnod.num_keys)*2*sizeof(int)+sizeof(int)));
-			  if( pos<fanout-1){ /* fanout -1 is the number of couple (pointer, key)*/
-				if( strncmp((char*) cnod.couple[pos].key, (char*) value,  attrLength) <0) return cnod.couple[pos].pagenum;
-				return 0;
-			   }
-			   else if( pos=fanout-1) {
-			   	if( strncmp((char*) cnod.couple[pos].key, (char*) value,  attrLength) >=0) return cnod.last_pt;
-				return 0;
-			   }
-			   else {
-				printf( "DEBUG: pb with fanout or position given \n");
-				return -1;
-			   }
-			   break;
+    
+    switch(attrType){
+        case 'i':
+              /* fill the struct using offset and cast operations */
+              inod.num_keys= *((int*)pagebuf+sizeof(bool_t));
+              inod.couple=(icouple *)pagebuf+sizeof(bool_t)+sizeof(int)+sizeof(int);
+              inod.last_pt=*((int*)(pagebuf+sizeof(bool_t)+sizeof(int)));
+              
+              if( pos<(inod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
+                if( strncmp((char*) &(inod.couple[pos].key), (char*) value,  sizeof(int)) <0) return inod.couple[pos].pagenum;
+                return 0;
+               }
+               else if( pos==(inod.num_keys-1)) {
+                   if( strncmp((char*) &(inod.couple[pos].key), (char*) value,  sizeof(int)) >=0) return inod.last_pt;
+                return inod.couple[pos].pagenum;
+               }
+               else {
+                printf( "DEBUG: pb with fanout or position given \n");
+                return -1;
+               }
+               break;
 
-		case 'f':  /* fill the struct using offset and cast operations */
-			  fnod.num_keys= *((int*)pagebuf+sizeof(bool_t));
-			  fnod.couple=(fcouple*)pagebuf+sizeof(bool_t)+sizeof(int);
-			  fnod.last_pt=*((int*)(pagebuf+sizeof(bool_t)+(fnod.num_keys)*2*sizeof(int)+sizeof(int)));
+        case 'c':  /* fill the struct using offset and cast operations */
+              cnod.num_keys= *((int*)pagebuf+sizeof(bool_t));
+              cnod.couple=(ccouple*)pagebuf+sizeof(bool_t)+sizeof(int)+sizeof(int);
+              cnod.last_pt=*( (int*)(pagebuf+sizeof(bool_t)+sizeof(int)) );
 
-			  if( pos<(fanout-1)){ /* fanout -1 is the number of couple (pointer, key)*/
-				if(  fnod.couple[pos].key > *((float*)value) ) return fnod.couple[pos].pagenum;
-				return 0;
-			   }
-			   else if(( pos==fanout-1)) {
-			   	if(  fnod.couple[pos].key <=*((float*)value) ) return fnod.last_pt;
-				return 0;
-			   }
-			   else {
-				printf( "DEBUG: pb with fanout or position given \n");
-				return -1;
-			   }
-			   break;
-		default:
-			
-			return AME_ATTRTYPE;
-	}
+              if( pos<(cnod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
+                if( strncmp((char*) value, (char*) (cnod.couple +pos*(sizeof(int)+attrLength)+sizeof(int)),  attrLength) <0) return *((int*)(cnod.couple +pos*(sizeof(int)+attrLength)));
+                return 0;
+               }
+               else if( pos==(cnod.num_keys-1)) {
+                   if(strncmp((char*) value,(char*) (cnod.couple +pos*(sizeof(int)+attrLength)+sizeof(int)),   attrLength) >=0) return cnod.last_pt;
+                return *((int*)(cnod.couple +pos*(sizeof(int)+attrLength)));
+               }
+               else {
+                printf( "DEBUG: pb with fanout or position given \n");
+                return -1;
+               }
+               break;
+
+        case 'f':  /* fill the struct using offset and cast operations */
+              fnod.num_keys= *((int*)(pagebuf+sizeof(bool_t)));
+              fnod.couple=(fcouple*)(pagebuf+sizeof(bool_t)+sizeof(int)+sizeof(int));
+              fnod.last_pt=*( (int*)(pagebuf+sizeof(bool_t)+sizeof(int)) );
+
+              if( pos<(fnod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
+                if(  fnod.couple[pos].key > *((float*)value) ) return fnod.couple[pos].pagenum;
+                return 0;
+               }
+               else if(pos==(fnod.num_keys-1)) {
+                   if(  fnod.couple[pos].key <=*((float*)value) ) return fnod.last_pt;
+                return fnod.couple[pos].pagenum;
+               }
+               else {
+                printf( "DEBUG: pb with fanout or position given \n");
+                return -1;
+               }
+               break;
+        default:
+            
+            return AME_ATTRTYPE;
+    }
 }
+/* For any type of leaves: given a value and the position of a couple ( pointer,key) in a node, return the position of the couple inside the leaf . Return 0 if the pointer is unknown.
+ * the fanout is also given, in case of the couple contain the last key, then the last pointer of the node has to be taken
+ * this function is created to avoid switch-case inside a loop, in the function
+ */
+int AM_KeyPos(int pos, int fanout, char* value, char attrType, int attrLength, char* pagebuf){
+    /*use to get any type of node and leaf from a buffer page*/
+    ileaf inod;
+    fleaf fnod;
+    cleaf cnod;
+    
+    switch(attrType){
+        case 'i':
+              /* fill the struct using offset and cast operations */
+              inod.num_keys= *((int*)pagebuf+sizeof(bool_t));
+              inod.couple=(icoupleLeaf *)pagebuf+sizeof(bool_t)+sizeof(int)+sizeof(int);
+            
+              
+              if( pos<(inod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
+                if( strncmp((char*) value,(char*) &(inod.couple[pos].key),   sizeof(int))<=0){
+                    return pos;
+                    
+                }
+                return 0;
+               }
+               else if( pos==(inod.num_keys-1)) {
+                   if( strncmp((char*) value, (char*) &(inod.couple[pos].key),  sizeof(int)) <=0) return pos;
+                return pos+1;
+               }
+               else {
+                printf( "DEBUG: pb with fanout or position given \n");
+                return -1;
+               }
+               break;
 
-	
-	 
+        case 'c':  /* fill the struct using offset and cast operations */
+              cnod.num_keys= *((int*)pagebuf+sizeof(bool_t));
+              cnod.couple=(ccoupleLeaf*)pagebuf+sizeof(bool_t)+sizeof(int);
+            
+              if( pos<(cnod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
+                if( strncmp((char*) value, (char*) (cnod.couple +pos*(sizeof(int)+attrLength)+sizeof(int)),   attrLength) <=0)return pos;
+                return 0;
+                }
+               else if( pos==(cnod.num_keys-1)) {
+                   if(strncmp( (char*) value, (char*) (cnod.couple +pos*(sizeof(int)+attrLength)+sizeof(int)),  attrLength) <=0) return pos;            
+                return pos+1;
+                
+               }
+               else {
+                printf( "DEBUG: pb with fanout or position given \n");
+                return -1;
+               }
+               break;
+
+        case 'f':  /* fill the struct using offset and cast operations */
+              fnod.num_keys= *((int*)pagebuf+sizeof(bool_t));
+              fnod.couple=(fcoupleLeaf*)pagebuf+sizeof(bool_t)+sizeof(int);
+              
+              if( pos<(fnod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
+                if(  fnod.couple[pos].key >= *((float*)value) ) {
+                    return pos;
+                }
+                return 0;
+               }
+               else if(pos<(fnod.num_keys-1)) {
+                   if(  fnod.couple[pos].key >=*((float*)value) ) return pos;
+                return pos+1;
+               }
+               else {
+                printf( "DEBUG: pb with fanout or position given \n");
+                return -1;
+               }
+               break;
+        default:
+            
+            return AME_ATTRTYPE;
+    }
+}    
+
 int AM_FindLeaf(int idesc, char* value, int* tab){
-	int error,  pagenum;
-	bool_t is_leaf;
-	AMitab_ele* pt;
-	int fanout;
-	char* pagebuf;
-	int i,j;
-	
-	
-	/* all verifications of idesc and root number has already been done by the caller function */
-	pt=AMitab+idesc;
+    int error,  pagenum;
+    bool_t is_leaf, pt_find;
+    int key_pos;
+    AMitab_ele* pt;
+    int fanout;
+    char* pagebuf;
+    int i,j;
+    
+    
+    /* all verifications of idesc and root number has already been done by the caller function */
+    pt=AMitab+idesc;
+    
+    tab[0]=pt->header.racine_page;
+    if(tab[0]<=1) return AME_WRONGROOT;
+    
+    for(i=0; i<(pt->header.height_tree);i++){
 
-	if(tab[0]<=1) return AME_WRONGROOT;
-	
-	for(i=0; i<(pt->header.height_tree);i++){
-
-		error=PF_GetThisPage(pt->fd, tab[i], &pagebuf);
-		if(error!=PFE_OK) PF_ErrorHandler(error);
-		
-		/*check if this node is a leaf */
-		memcpy((bool_t*) &is_leaf, pagebuf, sizeof(bool_t));
-		
-		if( is_leaf==FALSE){
-				fanout=pt->fanout;
-			/* have to find the next child using comparison */
-			/* fanout = n ==> n-1 key */
-				for(j=0; j<(pt->fanout-1);j++){
-					}
-		}
+        error=PF_GetThisPage(pt->fd, tab[i], &pagebuf);
+        if(error!=PFE_OK) PF_ErrorHandler(error);
+        
+        /*check if this node is a leaf */
+        memcpy((bool_t*) is_leaf, pagebuf, sizeof(bool_t));
+        
+        if( is_leaf==FALSE){
+            fanout=pt->fanout;
+            pt_find=FALSE;
+            j=0;
+            /* have to find the next child using comparison */
+            /* fanout = n ==> n-1 key */
+                while(pt_find==FALSE){ /*normally is sure to find a key, since even if value is greater than all key: the last pointer is taken*/
+                    pagenum=AM_CheckPointer(j, pt->fanout,  value, pt->header.attrType, pt->header.attrLength, pagebuf);
+                    if (pagenum>0 && pt->header.num_pages>=pagenum){
+                    tab[i+1]=pagenum;
+                    pt_find==TRUE; }
+                    else j++;/* the pointer to the child is found, let is go to the level below and get the child */
+                }
+        }
+        else{
+            fanout=pt->fanout;
+            j=0;
+            /* have to find the next child using comparison */
+            /* fanout = n ==> n-1 key */
+                while(1){ /*normally is sure to find a key, since even if value is greater than all key: the last pointer is taken*/                    /*key_pos is the position of the couple containing the closest key to value, this key has to be less or equal than the value*/
+                    key_pos=AM_KeyPos(j, pt->fanout,  value, pt->header.attrType, pt->header.attrLength, pagebuf);
+                    if (key_pos>0) return key_pos;
+                    else j++;/* the pointer to the child is found, let is go to the level below and get the child */
+                }
+        }
+     }      
    
 
-	}
-	
-	pagenum = 1;
-	return pagenum;
-					
-					
-						
-			
+
 }
-
-
-
 
 
 /* 
