@@ -421,6 +421,7 @@ int AM_FindLeaf(int idesc, char* value, int* tab){
  */
 void AM_Init(void){
 	AMitab = malloc(sizeof(AMitab_ele) * AM_ITAB_SIZE);
+	AMscantab = malloc(sizeof(AMscantab_ele) * MAXSCANS);
 	AMitab_length = 0;
 	HF_Init();
 }
@@ -513,6 +514,7 @@ int AM_DestroyIndex(char *fileName, int indexNo){
 }
 
 int AM_OpenIndex(char *fileName, int indexNo){
+
 	int error, pffd, fileDesc;
 	AMitab_ele *pt;
 	char *headerbuf;
@@ -520,12 +522,15 @@ int AM_OpenIndex(char *fileName, int indexNo){
 	
 	/*Initialisation */
 	new_filename = malloc(sizeof(fileName) + sizeof(int));
+	
 	printf("length %d", AMitab_length);
 	/*parameters cheking */
 	if( AMitab_length >= AM_ITAB_SIZE){
 		return AME_FULLTABLE;
 	}
+
 	sprintf(new_filename, "%s.%i", fileName, indexNo);
+
 	pffd = PF_OpenFile(new_filename);
 	if(pffd < 0){
 		PF_ErrorHandler(pffd);
@@ -1097,7 +1102,7 @@ int AM_OpenIndexScan(int AM_fd, int op, char *value){
 	int key, error, val;
 	int* tab;
 	val = -2147483648; /* = INTEGER_MINVALUE, used if op is NE_OP, to just get leftmost element */
-	
+
 	if (AM_fd < 0 || AM_fd >= AMitab_length) return AME_FD;
 	if (op < 1 || op > 6) return AME_INVALIDOP;
 	if (AMscantab_length >= AM_ITAB_SIZE) return AME_SCANTABLEFULL;
@@ -1105,24 +1110,23 @@ int AM_OpenIndexScan(int AM_fd, int op, char *value){
 	amitab_ele = AMitab + AM_fd;
 	
 	if (amitab_ele->valid != TRUE) return AME_INDEXNOTOPEN;
-	
+
 	amscantab_ele = AMscantab + AMscantab_length;
 	
+
 	/* copy the values */
 	memcpy((char*) amscantab_ele->value, (char*) value, amitab_ele->header.attrLength);
 	amscantab_ele->op = op;
-
-	tab=malloc(pt->header.height_tree);
+	tab = malloc(amitab_ele->header.height_tree * sizeof(int));
 	key = AM_FindLeaf(AM_fd, value, tab);
 	if (op == NE_OP) key = AM_FindLeaf(AM_fd, (char*) &val, tab); /* use val if NE_OP, to get leftmost leaf */
-	
 	
 	amscantab_ele->current_page = tab[(amitab_ele->header.height_tree)-1];
 	amscantab_ele->current_key = key;
 	amscantab_ele->current_num_keys = 0; /* this is set in findNextEntry */
 	amscantab_ele->AMfd = AM_fd;
 	amscantab_ele->valid = TRUE;
-	
+
 	free(tab);
 	return AMscantab_length++;
 }
