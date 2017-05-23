@@ -82,5 +82,8 @@ To store an index on the disk, we simply make use of the underlying PF Layer fun
 Finding records by given criteria works similar to finding records in the heap file. The main difference is, that instead of sequentially scanning the whole file and compare every single record to the given condition, we can make use of the order of items in a B+Tree and thus access items in a more efficient manner.
 To open a scan, the function `int AM_OpenIndexScan(int fileDesc, int op, char *value)` has to be used, which sets up an entry in the index scantable. The entries in this table hold all necessary information to find records by the given criteria as well as file names and descriptors of the paged file that stores the index and the file that contains the effective data. Similarly to the HF Layer, `RECID AM_FindNextEntry(int scanDesc)` is used to find an entry that satisfied the given condition and `int AM_CloseIndexScan(int scanDesc)` is used to clean up at the end.
 
+### Walking down the index to find the right node
+To find a leaf node to start scanning, given a value, we created the function int AM_FindLeaf(int idesc, char* value, int* tab). This function finds its way through the B+Tree index to the closest value and returns the key position left to the found value. The out parameter tab is used to get the path from the found leaf node all the way up to the root, so that this information can be used further.
+
 ## Frontend Layer
 TODO
