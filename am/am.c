@@ -455,12 +455,27 @@ int AM_CloseIndex(int fileDesc){
 }
 
 
+/* return the index where the leaf should be splitted 
+ * the pagebuf contains only the couple
+ */
+int split_leaf(char* pagebuf, int size, int attrLength, int attrType){
+	int i, middle;
+	
+	middle = size / 2 + 1;
+
+	/* tant que 
+
+
+
+}
+
 
 /* return AME_OK if succeed
  *
  */
 int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 	int leafNum;
+	int splitIndex;
 	int root_pagenum;
 	int pos;
 	int couple_size;
@@ -606,17 +621,35 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 	else{
 		printf("No more space in the leaf\n");
 		
-		tempbuffer = malloc(couple_size*pt->fanout_leaf);
+		tempbuffer = malloc(couple_size*num_keys);
 		offset = sizeof(bool_t) + 3 * sizeof(int);
 
-		/* cpy in the buffer the part of the node before the key , then the key, then the part after */
-		memcpy((char*) tempbuffer, (char*) (pagebuf + offset), couple_size*pos);
+		/* cpy in the buffer the part of the node before the key , then the couple , then the part after */
+		memcpy((char*) (tempbuffer) , (char*) (pagebuf + offset), couple_size*pos);
 		offset += couple_size * pos;
-		/*
-		memcpy((char*) (tempbuffer + offset), (char*) (pagebuf + offset), couple_size*pos); /*cpy the couple */
-/*
-		memcpy((char*) (pagebuf + offset + couple_size), (char*) tempbuffer, couple_size*(num_keys - pos));
-		*/
+		/* copy the couple */
+		memcpy((char *) (tempbuffer + couple_size * pos ), (RECID*) &recId, sizeof(RECID));
+		switch (pt->header.attrType){
+			case 'c':
+				memcpy((char*)(tempbuffer + couple_size * pos + sizeof(RECID)), (char*) value, pt->header.attrLength);
+				break;
+			case 'i':
+				memcpy((char*)(tempbuffer + couple_size * pos + sizeof(RECID)), (int*) value, pt->header.attrLength);
+				break;
+			case 'f':
+				memcpy((char*)(tempbuffer + couple_size * pos + sizeof(RECID)), (float*) value, pt->header.attrLength);
+				break;
+			default:
+				return AME_INVALIDATTRTYPE;
+				break;
+		}
+		offset += couple_size;
+		/* copy the right part of the leaf */
+		memcpy((char*) (tempbuffer + couple_size*(pos+1)), (char*) (pagebuf + offset), couple_size*(num_keys - pos));
+	
+		/* Find the split index */
+		splitIndex = split_leaf(tempbuffer, num_keys, pt->header.attrLength, pt->header.attrType);
+
 		free(tempbuffer);
 		
 		/* Insert into leaf after splitting */
