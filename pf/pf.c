@@ -284,7 +284,7 @@ int PF_CloseFile (int fd) {
 		if(PFftab_length>0){
 		 PFftab_length--;
 		while(PFftab_length>0 && ((PFftab + (PFftab_length-1))->valid==FALSE) ) PFftab_length--;/* delete all the closed file, which are the end of the table */          }}
-        }}
+        
 	    /*
 	    printf("\nThe file '%s' containing %d pages (including header page) has been closed.\n", pt->fname, pt->hdr.numpages);
 		*/

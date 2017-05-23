@@ -317,6 +317,7 @@ int BF_FlushBuf(int fd){
 			*	
 			*/
 			if(pt->count != 0){ /* The page is still in use, impossible to remoe the file */
+				printf("DEBUG: the page number is : %d and the count :%d \n" , pt->pagenum, pt->count);
  				return  BFE_PINNEDPAGE; 
 			}
 			else{
