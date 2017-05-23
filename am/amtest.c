@@ -17,7 +17,7 @@
 #include "am.h"
 
 #define FILE1       "testrel"
-#define STRSIZE     32
+#define STRSIZE     4
 #define TOTALTESTS  3
 
 /* prototypes for all of the test functions */
@@ -42,13 +42,13 @@ void (*tests[])() = {amtest1, amtest2, amtest3, cleanup};
 void amtest1()
 {
    int value,id, am_fd, hf_fd;
-   char string_val[STRSIZE];
+   int string_val;
    char files_to_delete[80];
    RECID recid;
 
    /* To avoid uninitialized bytes error reported by valgrind */
    /* Bongki, Mar/13/2011 */
-   memset(string_val,'\0',STRSIZE);
+   /*memset(string_val,'\0',STRSIZE);*/
 
    printf("***** start amtest1 *****\n");
    /* making sure FILE1 index is not present */
@@ -68,7 +68,7 @@ void amtest1()
       exit(1);
    }
 
-   if (AM_CreateIndex(FILE1, 1, STRING_TYPE, STRSIZE, FALSE) != AME_OK) {
+   if (AM_CreateIndex(FILE1, 1, INT_TYPE, STRSIZE, FALSE) != AME_OK) {
       AM_PrintError("Problem creating");
       exit(1);
    }
@@ -81,9 +81,9 @@ void amtest1()
    AM_PrintTable();
    /*Inserting value in the HF file and the B+ Tree  */
       value = 10;
-      while (value < 350)
+      while (value < 700)
       {
-         sprintf(string_val, "entry%d", value);
+         string_val=value;
          /* Notice the recid value being inserted is trash.    */ 
          /* The (char *)& is unnecessary in AM_InsertEntry     */
          /* because in this case string_val is (char *)        */
@@ -91,14 +91,14 @@ void amtest1()
          /* in other cases (int and float value                */
 
          /* Inserting the record in the HF file */
-         recid = HF_InsertRec(hf_fd, string_val);
+         recid = HF_InsertRec(hf_fd,(char*) &string_val);
          if (!HF_ValidRecId(hf_fd,recid)){
             HF_PrintError("Problem inserting record in HF file");
             exit(1);
          }
-         printf("Inserting recid/key { (%d , %d) , %s }\n", recid.pagenum, recid.recnum, string_val);
+         printf("Inserting recid/key { (%d , %d) , %d }\n", recid.pagenum, recid.recnum, string_val);
          /* Inserting the record in the B+ Tree */
-         if (AM_InsertEntry(am_fd, (char *)&string_val, recid) != AME_OK) {
+         if (AM_InsertEntry(am_fd, (char *) &string_val, recid) != AME_OK) {
              AM_PrintError("Problem Inserting rec");
              exit(1);
          }

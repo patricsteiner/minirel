@@ -200,23 +200,36 @@ int AM_CheckPointer(int pos, int fanout, char* value, char attrType, int attrLen
     inode inod;
     fnode fnod;
     cnode cnod;
+    char * key; /* used to get the key of the couple at the index of value "pos" in the array of couple*/
+    /* use to get the page an return it */
+    int ikey;
+    int tmp_ivalue;
+    float fkey;
+    float tmp_fvalue;
+    int pagenum;
+    
+    
+    
 
 
     
     switch(attrType){
         case 'i':
               /* fill the struct using offset and cast operations*/
-              memcpy((int*)&inod.num_keys, (char*) (pagebuf+sizeof(bool_t)), sizeof(int));
-              inod.couple=(icouple *)pagebuf+sizeof(bool_t)+sizeof(int)+sizeof(int);
-              memcpy((int*)&inod.last_pt, (char*) (pagebuf+sizeof(bool_t)+sizeof(int)), sizeof(int));
-              
-              if( pos<(inod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
-                if( strncmp((char*) &(inod.couple[pos].key), (char*) value,  sizeof(int)) <0) return inod.couple[pos].pagenum;
-                return 0;
+              memcpy((int*)&inod.num_keys, (char*) (pagebuf+OffsetNodeNumKeys ), sizeof(int));
+              memcpy((int*)&inod.last_pt, (char*) (pagebuf+OffsetNodeLastPointer), sizeof(int));
+              inod.couple=(icouple *)pagebuf+OffsetNodeCouple ;
+              memcpy((int*) &ikey,(char*) (pagebuf+OffsetNodeCouple+pos*(sizeof(int)+attrLength)+sizeof(int)),  attrLength);
+                tmp_ivalue=*((int*)value);
+                
+                printf("\n node key %d, value %d \n", ikey, tmp_ivalue); 
+               if( pos<(inod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
+                  if( tmp_ivalue<ikey ) return inod.couple[pos].pagenum;
+                  return 0;
                }
                else if( pos==(inod.num_keys-1)) {
-                   if( strncmp((char*) &(inod.couple[pos].key), (char*) value,  sizeof(int)) >=0) return inod.last_pt;
-                return inod.couple[pos].pagenum;
+                   if( tmp_ivalue<ikey) return inod.couple[pos].pagenum;
+                   return inod.last_pt;
                }
                else {
                 printf( "DEBUG: pb with fanout or position given \n");
@@ -224,19 +237,25 @@ int AM_CheckPointer(int pos, int fanout, char* value, char attrType, int attrLen
                }
                break;
 
-        case 'c':  /* fill the struct using offset and cast operations */
-              memcpy((int*)&cnod.num_keys, (char*) (pagebuf+sizeof(bool_t)), sizeof(int));
-              cnod.couple=(ccouple*)pagebuf+sizeof(bool_t)+sizeof(int)+sizeof(int);
-              memcpy((int*)&cnod.last_pt, (char*) (pagebuf+sizeof(bool_t)+sizeof(int)), sizeof(int));
-              /*printf("num keys %d \n", cnod.num_keys);*/
-              if( pos<(cnod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
-                if( strncmp((char*) value, (char*) (cnod.couple +pos*(sizeof(int)+attrLength)+sizeof(int)),  attrLength) <0) return *((int*)(cnod.couple +pos*(sizeof(int)+attrLength)));
-                return 0;
+        case 'c':  /* fill the struct using offsets */
+              memcpy((int*)&cnod.num_keys, (char*) (pagebuf+OffsetNodeNumKeys ), sizeof(int));
+              memcpy((int*)&cnod.last_pt, (char*) (pagebuf+OffsetNodeLastPointer), sizeof(int));
+             
+              memcpy((char*) &key,(char*) (pagebuf+OffsetNodeCouple+pos*(sizeof(int)+attrLength)+sizeof(int)),  attrLength);
+           
+              
+              if( pos<(cnod.num_keys-1)){ 
+                if( strncmp((char*) value, key,  attrLength) <0) {
+                	 memcpy((int*) &pagenum,(pagebuf+OffsetNodeCouple+pos*(sizeof(int)+attrLength)),  sizeof(int));
+                	 return pagenum;
+                	 }
+                	 return -1;
                }
                else if( pos==(cnod.num_keys-1)) {
-                   if(strncmp((char*) value,(char*) (cnod.couple +pos*(sizeof(int)+attrLength)+sizeof(int)),   attrLength) >=0) /*return 3/*cnod.last_pt;
-                */return 2;/**((int*)(cnod.couple +pos*(sizeof(int)+attrLength)));*/
-
+               	  
+                   if(strncmp((char*) value,(char*) key,  attrLength) >=0) return cnod.last_pt;
+              	   memcpy((int*) &pagenum,(pagebuf+OffsetNodeCouple+pos*(sizeof(int)+attrLength)),  sizeof(int));
+                   return pagenum;
                }
                else {
                 printf( "DEBUG: Node pb with fanout or position given \n");
@@ -246,15 +265,17 @@ int AM_CheckPointer(int pos, int fanout, char* value, char attrType, int attrLen
 
         case 'f':  /* fill the struct using offset and cast operations */
               memcpy((int*)&fnod.num_keys, (char*) (pagebuf+sizeof(bool_t)), sizeof(int));
-              fnod.couple=(fcouple*)(pagebuf+sizeof(bool_t)+sizeof(int)+sizeof(int));
-              memcpy((int*)&fnod.last_pt, (char*) (pagebuf+sizeof(bool_t)+sizeof(int)), sizeof(int));
+              memcpy((int*)&fnod.last_pt, (char*) (pagebuf+OffsetNodeLastPointer), sizeof(int));
+              fnod.couple=(fcouple *)pagebuf+OffsetNodeCouple;
+            
+            
               if( pos<(fnod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
                 if(  fnod.couple[pos].key > *((float*)value) ) return fnod.couple[pos].pagenum;
-                return 0;
+                return -1;
                }
                else if(pos==(fnod.num_keys-1)) {
                    if(  fnod.couple[pos].key <=*((float*)value) ) return fnod.last_pt;
-                return fnod.couple[pos].pagenum;
+                   return fnod.couple[pos].pagenum;
                }
                else {
                 printf( "DEBUG: pb with fanout or position given \n");
@@ -278,23 +299,29 @@ int AM_KeyPos(int pos, int fanout, char* value, char attrType, int attrLength, c
 	fleaf fnod;
 	cleaf cnod;
 	
+	char* key;
+	int ikey;
+	int tmp_ivalue;
+	float fkey;
+	float tmp_fvalue;
+	int tmp_page;
 	
 	switch(attrType){
 		case 'i': 
 			  /* fill the struct using offset and cast operations */
-			  memcpy((int*)&inod.num_keys, (char*) (pagebuf+sizeof(bool_t)), sizeof(int));
-			  inod.couple=(icoupleLeaf *)(pagebuf+sizeof(bool_t)+sizeof(int)+sizeof(int)+sizeof(int));
-			
-			  
-			  if( pos<(inod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
-				if( strncmp((char*) value,(char*) &(inod.couple[pos].key),   sizeof(int))<=0){
-					return pos;
-					
-				}
+			  memcpy((int*)&inod.num_keys, (char*) (pagebuf+OffsetLeafNumKeys), sizeof(int));
+			  inod.couple=(icoupleLeaf *)(pagebuf+OffsetLeafCouple);
+			  memcpy((int*) &ikey,(char*) (pagebuf+OffsetLeafCouple+pos*(2*sizeof(int)+attrLength)+2*sizeof(int)),  attrLength);
+			  tmp_ivalue=*((int*)value);
+			  printf("la key ileaf %d et value %d \n", ikey,tmp_ivalue);
+			   if( pos<(inod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
+               				   if( tmp_ivalue<ikey ) return pos;
+             				     return -1;
+             			  
 				return -1;
 			   }
 			   else if( pos==(inod.num_keys-1)) {
-			   	if( strncmp((char*) value, (char*) &(inod.couple[pos].key),  sizeof(int)) <=0) return pos;
+			   	if( tmp_ivalue<ikey) return pos;
 				return pos+1;
 			   }
 			   else {
@@ -304,16 +331,19 @@ int AM_KeyPos(int pos, int fanout, char* value, char attrType, int attrLength, c
 			   break;
 
 		case 'c':  /* fill the struct using offset and cast operations */
-			  memcpy((int*)&cnod.num_keys, (char*) (pagebuf+sizeof(bool_t)), sizeof(int));
-			  cnod.couple=(ccoupleLeaf*)(pagebuf+sizeof(bool_t)+3*sizeof(int));
-
-			
+			  memcpy((int*)&cnod.num_keys, (char*) (pagebuf+OffsetLeafNumKeys), sizeof(int));
+			  
+			  memcpy((char*) key,(char*) (pagebuf+OffsetLeafCouple+pos*(2*sizeof(int)+attrLength)+2*sizeof(int)),  attrLength);
+			    
+			    
+			  printf("the return value %d, the comparison %d, the value %s, the key %s \n\n\n\n\n", tmp_page,strncmp((char*) value,(char*) key,   attrLength),value, key);
+			  /*************************************************/
 			  if( pos<(cnod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
-				if( strncmp((char*) value, (char*) (cnod.couple +pos*(sizeof(int)+attrLength)+sizeof(int)),   attrLength) <=0)return pos;
+				if( strncmp((char*) value,(char*) key ,   attrLength) <=0)return pos;
 				return -1;
 				}
 			   else if( pos==(cnod.num_keys-1)) {
-			   	if(strncmp( (char*) value, (char*) (cnod.couple +pos*(sizeof(int)+attrLength)+sizeof(int)),  attrLength) <=0) return pos;			
+			   	if(strncmp( (char*) value,(char*)  key,  attrLength) <=0) return pos;			
 				return pos+1;
 				
 			   }
@@ -324,8 +354,8 @@ int AM_KeyPos(int pos, int fanout, char* value, char attrType, int attrLength, c
 			   break;
 
 		case 'f':  /* fill the struct using offset and cast operations */
-			  memcpy((int*)&fnod.num_keys, (char*) (pagebuf+sizeof(bool_t)), sizeof(int));
-			  fnod.couple=(fcoupleLeaf*)(pagebuf+sizeof(bool_t)+3*sizeof(int));
+			  memcpy((int*)&fnod.num_keys, (char*) (pagebuf+OffsetLeafNumKeys), sizeof(int));
+			  fnod.couple=(fcoupleLeaf*)(pagebuf+OffsetLeafCouple);
 			  
 			  if( pos<(fnod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
 				if(  fnod.couple[pos].key >= *((float*)value) ) {
@@ -333,7 +363,7 @@ int AM_KeyPos(int pos, int fanout, char* value, char attrType, int attrLength, c
 				}
 				return -1;
 			   }
-			   else if(pos<(fnod.num_keys-1)) {
+			   else if(pos==(fnod.num_keys-1)) {
 			   	if(  fnod.couple[pos].key >=*((float*)value) ) return pos;
 				return pos+1;
 			   }
@@ -400,9 +430,10 @@ int AM_FindLeaf(int idesc, char* value, int* tab){
                     key_pos=AM_KeyPos(j, pt->fanout,  value, pt->header.attrType, pt->header.attrLength, pagebuf);
                     if (key_pos>=0){
                     	/*printf("000000\n");*/
+                    	print_page(idesc, tab[i]);
                         error=PF_UnpinPage(pt->fd, tab[i], 0);
        		        	if(error!=PFE_OK) PF_ErrorHandler(error);
-
+			printf("\n la position %d \n", key_pos);
                     	return key_pos;
                     }
                     else j++;/* the pointer to the child is found, let is go to the level below and get the child */
@@ -788,13 +819,7 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 		pt->header.nb_leaf = 1;
 		pt->header.num_pages++;
 		pt->dirty = TRUE;
-		/************************************/
-		visitedNode = malloc( pt->header.height_tree * sizeof(int));
-		pos=AM_FindLeaf(fileDesc,  value, visitedNode);
 		
-		printf("ROOT : return of FindLeaf %d, page of leaf %d, root %d, sizeof tab %d \n", pos, visitedNode[0], visitedNode[0],sizeof(visitedNode));
-		free(visitedNode);
-		/*************************************************************************** /
 		/* Unpin page */
 		error = PF_UnpinPage(pt->fd, root_pagenum, 1);
 		if (error != PFE_OK)
