@@ -1172,6 +1172,7 @@ RECID AM_FindNextEntry(int scanDesc) {
 		AMerrno = AME_INVALIDSCANDESC;
 		return recid;
 	}
+
 	amscantab_ele = AMscantab + scanDesc;
 	amitab_ele = AMitab + amscantab_ele->AMfd;
 	if (amitab_ele->valid != TRUE) {
@@ -1208,7 +1209,7 @@ RECID AM_FindNextEntry(int scanDesc) {
 			cnod.couple = (ccoupleLeaf*) (pagebuf + sizeof(bool_t) +3*sizeof(int));
 			break;
 	}
-	
+
 	/* iterate to right-to-left if less-operation */
 	direction = (amscantab_ele->op == LT_OP || amscantab_ele->op == LE_OP) ? -1 : 1;
 
@@ -1233,6 +1234,7 @@ RECID AM_FindNextEntry(int scanDesc) {
 				break;
 			case 'c':
 				memcpy((char*) &c1, (char*)&(amscantab_ele->value), amitab_ele->header.attrLength);
+				/* TODO: next line causes segfault. idk how to get these values. */
 				c2 = cnod.couple + amscantab_ele->current_key * (sizeof(int) + amitab_ele->header.attrLength) + sizeof(int);
 				if (compareChars(c1, c2, amscantab_ele->op, amitab_ele->header.attrLength) == TRUE) found = TRUE;
 				amscantab_ele->current_key += direction;
