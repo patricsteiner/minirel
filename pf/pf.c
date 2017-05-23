@@ -282,9 +282,10 @@ int PF_CloseFile (int fd) {
 	 if(fd == (PFftab_length-1)){
 		
 		if(PFftab_length>0){
-		 PFftab_length--;
-		while(PFftab_length>0 && ((PFftab + (PFftab_length-1))->valid==FALSE) ) PFftab_length--;/* delete all the closed file, which are the end of the table */          }}
-        }}
+			PFftab_length--;
+			while(PFftab_length>0 && ((PFftab + (PFftab_length-1))->valid==FALSE) ) PFftab_length--;/* delete all the closed file, which are the end of the table */
+        }
+    }
 	    /*
 	    printf("\nThe file '%s' containing %d pages (including header page) has been closed.\n", pt->fname, pt->hdr.numpages);
 		*/
@@ -515,6 +516,7 @@ void PF_PrintError (char* error){
  *used in HF and AM layer to return an understandable message of error 
  */
 void PF_ErrorHandler(int error){
+	PF_PrintTable();
 	switch( error){
 		case PFE_INVALIDPAGE: printf("\n PF: the page number is negative or superior or equal than the number of page in the file(PFE_INVALIDPAGE) \n"); break;
 		

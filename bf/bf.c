@@ -18,6 +18,7 @@ Hashtable* ht;
  * Error Handler, print a related message to the error code given in parameter.
  */
 void BF_ErrorHandler( int error_code){
+	BF_ShowBuf();
 	switch( error_code){
 		case BFE_HASHNOTFOUND: printf("\n BF: the page is not (found) in hashtable \n"); break;
 		

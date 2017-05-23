@@ -197,28 +197,29 @@ int AM_FindLeaf(int idesc, char* value, int* tab){
 	/* all verifications of idesc and root number has already been done by the caller function */
 	pt=AMitab+idesc;
 
-	if(tab[0]<=1) return AME_WRONGROOT;
-	
-	for(i=0; i<(pt->header.height_tree);i++){
+	/*if(tab[0]<=1) return AME_WRONGROOT;
+	*/
+	/*for(i=0; i<(pt->header.height_tree);i++){
 
 		error=PF_GetThisPage(pt->fd, tab[i], &pagebuf);
 		if(error!=PFE_OK) PF_ErrorHandler(error);
 		
 		/*check if this node is a leaf */
-		memcpy((bool_t*) &is_leaf, pagebuf, sizeof(bool_t));
+		/*memcpy((bool_t*) &is_leaf, pagebuf, sizeof(bool_t));
 		
 		if( is_leaf==FALSE){
 				fanout=pt->fanout;
 			/* have to find the next child using comparison */
 			/* fanout = n ==> n-1 key */
-				for(j=0; j<(pt->fanout-1);j++){
+			/*	for(j=0; j<(pt->fanout-1);j++){
 					}
 		}
    
 
 	}
 	
-	pagenum = 1;
+	*/
+	pagenum = 0;
 	return pagenum;
 					
 					
@@ -470,9 +471,11 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 	bool_t is_leaf;
 	int offset;
 	char attrType;
+	int len_visitedNode;
 	int* visitedNode; /* array of node visited : [root, level1, , ] */
 	char* pagebuf;
 	AMitab_ele* pt;
+	char *tempbuffer;
 
 	pt = AMitab + fileDesc;
 	/* CASE : NO ROOT */
@@ -517,7 +520,7 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 		}
 
 		/* change the AMi_elem */
-		pt->header.racine_page = 2;
+		pt->header.racine_page = root_pagenum;
 		pt->header.height_tree = 1;
 		pt->header.nb_leaf = 1;
 		pt->header.num_pages++;
@@ -528,7 +531,7 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 		if (error != PFE_OK)
 			PF_ErrorHandler(error);
 
-		printf("root created\n");
+		printf("root created on page : %d\n",root_pagenum);
 		return AME_OK;
 	}
 
@@ -541,18 +544,19 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 	
 	if(pos < 0)
 		return AME_KEYNOTFOUND;
+	len_visitedNode = pt->header.height_tree;
+	leafNum = visitedNode[len_visitedNode];
+	leafNum = 2;
 
-	leafNum = visitedNode[pt->header.height_tree];
-	
-	error = PF_GetThisPage(pt->fd, leafNum, &pagebuf);
+	error = PF_GetThisPage(pt->fd, leafNum , &pagebuf);
 	if (error != PFE_OK)
 		PF_ErrorHandler(error);
 
 	memcpy((int*) &num_keys, (char*)(pagebuf + sizeof(bool_t)), sizeof(int));
 
-	printf("Still some space into the leaf");
 	/* CASE : STILL SOME PLACE */
 	if( num_keys < pt->fanout_leaf - 1){
+		printf("Still some space into the leaf\n");
 		/* Insert into leaf without splitting */
 		offset = sizeof(bool_t) + 3 * sizeof(int) + pos*couple_size;
 		/* ex : insert 3 
@@ -565,11 +569,18 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 		 with sizeof couple = sizeof recid + attrLength
 		 */
 		couple_size = sizeof(RECID) + pt->header.attrLength;
-		memmove((char*) (pagebuf + offset + couple_size), (char*) (pagebuf + offset), couple_size*(num_keys - pos));
+		/*tempbuffer = malloc(couple_size*(num_keys - pos));*/
 		
+		memmove((char*) (pagebuf + offset + couple_size), (char*) (pagebuf + offset), couple_size*(num_keys - pos));
+		/*
+		memcpy((char*) tempbuffer, (char*) (pagebuf + offset), couple_size*(num_keys - pos));
+		memcpy((char*) (pagebuf + offset + couple_size), (char*) tempbuffer, couple_size*(num_keys - pos));
+		*/
 		memcpy((char *) (pagebuf + offset ), (RECID*) &recId, sizeof(RECID));
 		offset += sizeof(RECID);
-
+		
+		/*free(tempbuffer);
+		*/
 		switch (pt->header.attrType){
 			case 'c':
 				memcpy((char*)(pagebuf + offset), (char*) value, pt->header.attrLength);
@@ -589,7 +600,7 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 		memcpy((char*)(pagebuf + sizeof(bool_t)), (int*) &num_keys, sizeof(int));
 
 		/* Unpin page */
-		error = PF_UnpinPage(pt->fd, root_pagenum, 1);
+		error = PF_UnpinPage(pt->fd, leafNum , 1);
 		if (error != PFE_OK)
 			PF_ErrorHandler(error);
 
@@ -599,8 +610,41 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 	}
 	/* CASE : NO MORE PLACE */
 	else{
-		printf("No more space in the leaf");
+		printf("No more space in the leaf\n");
 		/* Insert into leaf after splitting */
+		/* ALGO
+		 *  copy from the pos given to a temp pointer the value splitted
+		 * 	get the key to move up 
+		 *  Should we reset the part of the node which is moved ?
+		 * 	alloc page to create new leaf to fill with the temp pointers
+		 *	update leaf header
+		 *	update new_leaf header
+		 *  new leaf->prev = pagenum of leaf
+		 * 	leaf -> next = pagenum of new leaf
+		 *	free the temp pointer
+		 * 	unpin both nodes
+		 *  update the AMiele header (num_pages, height_tree?, nb_leaf)
+		 * 	
+		
+		visitedNode[ len_visitedNode ] = leaf
+		visitedNode[i] = internal node
+		visitedNode[0] = root
+		for (i = len_visitedNode-1; i > 0; i++){
+			
+		}
+		loop on : visitedNode 
+		 * 	insert into parent(parent pagenum, key, left leaf, right leaf):
+		 (recursif is way better)
+		 		if no parent (ie the leaf was the root)
+		 			get a page to store the internal node
+		 			write the header of the internal node
+		 			write the key in the internal node
+		 			update the AMiele header (num_pages, height_tree ?, racine_page)
+					unpin the page
+
+		 */
+
+
 	}
 
 
