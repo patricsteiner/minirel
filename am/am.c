@@ -222,85 +222,8 @@ bool_t AM_CheckPointer(int pos, int fanout, char* value, char attrType, int attr
     }
 
 }
-/* For any type of leaves: given a value and the position of a couple ( pointer,key) in a node, return the position of the couple inside the leaf . Return 0 if the pointer is unknown.
- * the fanout is also given, in case of the couple contain the last key, then the last pointer of the node has to be taken
- * this function is created to avoid switch-case inside a loop, in the function
- */
-int AM_KeyPos(int pos, int fanout, char* value, char attrType, int attrLength, char* pagebuf){
-    /*use to get any type of node and leaf from a buffer page*/
-    ileaf inod;
-    fleaf fnod;
-    cleaf cnod;
-    
-    switch(attrType){
-        case 'i':
-              /* fill the struct using offset and cast operations */
-              inod.num_keys= *((int*)pagebuf+sizeof(bool_t));
-              inod.couple=(icoupleLeaf *)pagebuf+sizeof(bool_t)+sizeof(int)+sizeof(int);
-            
-              
-              if( pos<(inod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
-                if( strncmp((char*) value,(char*) &(inod.couple[pos].key),   sizeof(int))<=0){
-                    return pos;
-                    
-                }
-                return 0;
-               }
-               else if( pos==(inod.num_keys-1)) {
-                   if( strncmp((char*) value, (char*) &(inod.couple[pos].key),  sizeof(int)) <=0) return pos;
-                return pos+1;
-               }
-               else {
-                printf( "DEBUG: pb with fanout or position given \n");
-                return -1;
-               }
-               break;
 
-        case 'c':  /* fill the struct using offset and cast operations */
-              cnod.num_keys= *((int*)pagebuf+sizeof(bool_t));
-              cnod.couple=(ccoupleLeaf*)pagebuf+sizeof(bool_t)+sizeof(int);
-            
-              if( pos<(cnod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
-                if( strncmp((char*) value, (char*) (cnod.couple +pos*(sizeof(int)+attrLength)+sizeof(int)),   attrLength) <=0)return pos;
-                return 0;
-                }
-               else if( pos==(cnod.num_keys-1)) {
-                   if(strncmp( (char*) value, (char*) (cnod.couple +pos*(sizeof(int)+attrLength)+sizeof(int)),  attrLength) <=0) return pos;            
-                return pos+1;
-                
-               }
-               else {
-                printf( "DEBUG: pb with fanout or position given \n");
-                return -1;
-               }
-               break;
 
-        case 'f':  /* fill the struct using offset and cast operations */
-              fnod.num_keys= *((int*)pagebuf+sizeof(bool_t));
-              fnod.couple=(fcoupleLeaf*)pagebuf+sizeof(bool_t)+sizeof(int);
-              
-              if( pos<(fnod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
-                if(  fnod.couple[pos].key >= *((float*)value) ) {
-                    return pos;
-                }
-                return 0;
-               }
-               else if(pos<(fnod.num_keys-1)) {
-                   if(  fnod.couple[pos].key >=*((float*)value) ) return pos;
-                return pos+1;
-               }
-               else {
-                printf( "DEBUG: pb with fanout or position given \n");
-                return -1;
-               }
-               break;
-        default:
-            
-            return AME_ATTRTYPE;
-    }
-}    
-
-<<<<<<< HEAD
 /* For any type of leaves: given a value and the position of a couple ( pointer,key) in a node, return the position of the couple inside the leaf . Return 0 if the pointer is unknown.
  * the fanout is also given, in case of the couple contain the last key, then the last pointer of the node has to be taken
  * this function is created to avoid switch-case inside a loop, in the function 
