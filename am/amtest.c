@@ -81,7 +81,7 @@ void amtest1()
    AM_PrintTable();
    /*Inserting value in the HF file and the B+ Tree  */
       value = 10;
-      while (value < 250)
+      while (value < 350)
       {
          sprintf(string_val, "entry%d", value);
          /* Notice the recid value being inserted is trash.    */ 
@@ -102,7 +102,7 @@ void amtest1()
              AM_PrintError("Problem Inserting rec");
              exit(1);
          }
-         print_page(am_fd, 2);
+         /*print_page(am_fd, 2);*/
          value = value + 2;
       }
 
