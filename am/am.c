@@ -21,7 +21,46 @@
 							 - go through the Btree with the policy explain above, and stock the pagenum of every scanned node in the array tab , at the end the pagenum of the leaf where the value has to be insert is returned 
 							 - return error or HFE_OK, in case of duplicate key: the position of the first equal key in the leaf*/
 AMitab_ele *AMitab;
+AMscantab_ele *AMscantab;
 size_t AMitab_length;
+size_t AMscantab_length;
+
+bool_t compareInt(int a, int b, int op) {
+	switch (op) {
+		case EQ_OP: return a == b ? TRUE : FALSE;
+		case LT_OP: return a < b ? TRUE : FALSE;
+		case GT_OP: return a > b ? TRUE : FALSE;
+		case LE_OP: return a <= b ? TRUE : FALSE;
+		case GE_OP: return a >= b ? TRUE : FALSE;
+		case NE_OP: return a != b ? TRUE : FALSE;
+		default: return FALSE;
+	}
+}
+
+bool_t compareFloat(float a, float b, int op) {
+	switch (op) {
+		case EQ_OP: return a == b ? TRUE : FALSE;
+		case LT_OP: return a < b ? TRUE : FALSE;
+		case GT_OP: return a > b ? TRUE : FALSE;
+		case LE_OP: return a <= b ? TRUE : FALSE;
+		case GE_OP: return a >= b ? TRUE : FALSE;
+		case NE_OP: return a != b ? TRUE : FALSE;
+		default: return FALSE;
+	}
+}
+
+
+bool_t compareChars(char* a, char* b, int op, int len) {
+	switch (op) {
+		case EQ_OP: return strncmp(a, b, len) == 0 ? TRUE : FALSE;
+		case LT_OP: return strncmp(a, b, len) < 0 ? TRUE : FALSE;
+		case GT_OP: return strncmp(a, b, len) > 0 ? TRUE : FALSE;
+		case LE_OP: return strncmp(a, b, len) <= 0 ? TRUE : FALSE;
+		case GE_OP: return strncmp(a, b, len) >= 0 ? TRUE : FALSE;
+		case NE_OP: return strncmp(a, b, len) != 0 ? TRUE : FALSE;
+		default: return FALSE;
+	}
+}
 
 void AM_PrintTable(void){
 	size_t i;
@@ -714,19 +753,247 @@ int AM_DeleteEntry(int fileDesc, char *value, RECID recId){
 	return AME_OK;
 }
 
-int AM_OpenIndexScan(int fileDesc, int op, char *value){
-	return AME_OK;
+
+/*
+ *    int     AM_fd,               file descriptor                 
+ *    int     op,                  operator for comparison         
+ *    char    *value               value for comparison (or null)  
+ *
+ * This function opens an index scan over the index represented by the file associated with AM_fd.
+ * The value parameter will point to a (binary) value that the indexed attribute values are to be
+ * compared with. The scan will return the record ids of those records whose indexed attribute 
+ * value matches the value parameter in the desired way. If value is a null pointer, then a scan 
+ * of the entire index is desired. The scan descriptor returned is an index into the index scan 
+ * table (similar to the one used to implement file scans in the HF layer). If the index scan table
+ * is full, an AM error code is returned in place of a scan descriptor.
+ *
+ * The op parameter can assume the following values (as defined in the minirel.h file provided).
+ *
+ *    #define EQ_OP           1
+ *    #define LT_OP           2
+ *    #define GT_OP           3
+ *    #define LE_OP           4
+ *    #define GE_OP           5
+ *    #define NE_OP           6
+ *
+ * Dev: Patric
+ */
+int AM_OpenIndexScan(int AM_fd, int op, char *value){
+	AMitab_ele* amitab_ele;
+	AMscantab_ele* amscantab_ele;
+	int key, error, val;
+	int* tab;
+	val = -2147483648; /* = INTEGER_MINVALUE, used if op is NE_OP, to just get leftmost element */
+	
+	if (AM_fd < 0 || AM_fd >= AMitab_length) return AME_FD;
+	if (op < 1 || op > 6) return AME_INVALIDOP;
+	if (AMscantab_length >= AM_ITAB_SIZE) return AME_SCANTABLEFULL;
+
+	amitab_ele = AMitab + AM_fd;
+	
+	if (amitab_ele->valid != TRUE) return AME_INDEXNOTOPEN;
+	
+	amscantab_ele = AMscantab + AMscantab_length;
+	
+	/* copy the values */
+	memcpy((char*) amscantab_ele->value, (char*) value, amitab_ele->header.attrLength);
+	amscantab_ele->op = op;
+
+
+	key = AM_FindLeaf(AM_fd, value, tab);
+	if (op == NE_OP) key = AM_FindLeaf(AM_fd, (char*) &val, tab); /* use val if NE_OP, to get leftmost leaf */
+
+	amscantab_ele->current_page = tab[amitab_ele->header.height_tree];
+	amscantab_ele->current_key = key;
+	amscantab_ele->current_num_keys = 0; /* this is set in findNextEntry */
+	amscantab_ele->AMfd = AM_fd;
+	amscantab_ele->valid = TRUE;
+	
+	return AMscantab_length++;
 }
 
-RECID AM_FindNextEntry(int scanDesc){
-	RECID res;
-	res.recnum = 0;
-	res.pagenum = 0;
+     
 
-	return res;
+/* 
+ * int     scanDesc;           scan descriptor of an index
+ *
+ * This function returns the record id of the next record that satisfies the conditions specified for an
+ * index scan associated with scanDesc. If there are no more records satisfying the scan predicate, then an
+ * invalid RECID is returned and the global variable AMerrno is set to AME_EOF. Other types of errors are
+ * returned in the same way.
+ *
+ * Dev: Patric
+ */
+RECID AM_FindNextEntry(int scanDesc) {
+	/* Procedure:
+		- check operator and go to according direction (left or right) by doing:
+			- increment/decrement key_pos while key_pos > 0 resp. < num_keys
+			- if first/last couple is reached, jump to next/prev page
+			- check on every key if its a match, if yes return and save current pos
+	*/
+
+	RECID recid;
+	AMitab_ele* amitab_ele;
+	AMscantab_ele* amscantab_ele;
+	char* pagebuf;
+	int error, current_key, current_page, direction, tmp_page, tmp_key, offset;
+	float f1, f2;
+	int i1, i2;
+	char *c1, *c2;
+	ileaf inod;
+	fleaf fnod;
+	cleaf cnod;
+	bool_t found;
+
+	found = FALSE;
+
+	if (scanDesc < 0 ||  (scanDesc >= AMscantab_length && AMscantab_length !=0)) {
+		recid.pagenum = AME_INVALIDSCANDESC;
+		recid.recnum = AME_INVALIDSCANDESC;
+		AMerrno = AME_INVALIDSCANDESC;
+		return recid;
+	}
+	amscantab_ele = AMscantab + scanDesc;
+	amitab_ele = AMitab + amscantab_ele->AMfd;
+	if (amitab_ele->valid != TRUE) {
+		recid.pagenum = AME_INDEXNOTOPEN;
+		recid.recnum = AME_INDEXNOTOPEN;
+		AMerrno = AME_INDEXNOTOPEN;
+		return recid;
+	}
+	if (amscantab_ele->valid == FALSE) {
+		recid.pagenum = AME_SCANNOTOPEN;
+		recid.recnum = AME_SCANNOTOPEN;
+		AMerrno = AME_SCANNOTOPEN;
+		return recid;
+	}
+
+	/* read the current node */
+	error = PF_GetThisPage(amitab_ele->fd, amscantab_ele->current_page, &pagebuf);
+	if(error != PFE_OK) PF_ErrorHandler(error);
+
+	/* read num_keys and write it in scantab_ele */
+	memcpy((int*) &(amscantab_ele->current_num_keys), (int*) pagebuf + sizeof(bool_t), sizeof(int));
+
+	switch (amitab_ele->header.attrType) {
+		case 'i':
+			inod.num_keys = *((int*) pagebuf + sizeof(bool_t));
+			inod.couple = (icoupleLeaf*) pagebuf + sizeof(bool_t) + sizeof(int) + sizeof(int);
+			break;
+		case 'f':
+			fnod.num_keys = *((int*) pagebuf + sizeof(bool_t));
+			fnod.couple = (fcoupleLeaf*) pagebuf + sizeof(bool_t) + sizeof(int) + sizeof(int);
+			break;
+		case 'c':
+			cnod.num_keys = *((int*) pagebuf + sizeof(bool_t));
+			cnod.couple = (ccoupleLeaf*) pagebuf + sizeof(bool_t) + sizeof(int) + sizeof(int);
+			break;
+	}
+	
+	/* iterate to right-to-left if less-operation */
+	direction = (amscantab_ele->op == LT_OP || amscantab_ele->op == LE_OP) ? -1 : 1;
+
+	/* while there is a next page (if there is non, it is set to LAST_PAGE resp. FIRST_PAGE = -1) */
+	while (amscantab_ele->current_page >= 0) {
+		/* iterate through keys while there is a next key and we found no result */
+		while (found == FALSE && amscantab_ele->current_key > 0 && amscantab_ele->current_key < amscantab_ele->current_num_keys) {
+			/* compare and return if match */
+			switch (amitab_ele->header.attrType) {
+			case 'i':
+				/* get the the values to compare */
+				memcpy(&i1, (char*) &(amscantab_ele->value), sizeof(int));
+				i2 = inod.couple[amscantab_ele->current_key].key;
+				if (compareInt(i1, i2, amscantab_ele->op) == TRUE) found = TRUE;
+				break;
+			case 'f':
+				memcpy(&f1, (char*) &(amscantab_ele->value), sizeof(float));
+				f2 = fnod.couple[amscantab_ele->current_key].key;
+				if (compareFloat(f1, f2, amscantab_ele->op) == TRUE) found = TRUE;
+				break;
+			case 'c':
+				memcpy(&c1, (char*) &(amscantab_ele->value), amitab_ele->header.attrLength);
+				c2 = cnod.couple + amscantab_ele->current_key * (sizeof(int) + amitab_ele->header.attrLength) + sizeof(int);
+				if (compareChars(c1, c2, amscantab_ele->op, amitab_ele->header.attrLength) == TRUE) found = TRUE;
+				break;
+			}
+			amscantab_ele->current_key += direction;
+		}
+
+		tmp_page = amscantab_ele->current_page;
+		/* update amscantab_ele by reading next/prev page. the next/prev page will be -1 if its nonexistent. */
+		if (direction < 0) {
+			memcpy(&(amscantab_ele->current_page), (int*) (pagebuf + sizeof(bool_t) + sizeof(int)), sizeof(int));
+		} else {
+			memcpy(&(amscantab_ele->current_page), (int*) (pagebuf + sizeof(bool_t) + sizeof(int)*2), sizeof(int));
+		}
+		
+		error = PF_UnpinPage(amitab_ele->fd, tmp_page, 0);
+		if(error != PFE_OK) PF_ErrorHandler(error);
+		error = PF_GetThisPage(amitab_ele->fd, amscantab_ele->current_page, &pagebuf);
+		if(error != PFE_OK) PF_ErrorHandler(error);
+		
+		if (direction < 0) {
+			/* read num_keys and write it in scantab_ele */
+			memcpy((int*) &(amscantab_ele->current_key), (int*) pagebuf + sizeof(bool_t), sizeof(int));
+		} else {
+			/* if iterating right-to-left, first key on next page will just be 0 */
+			amscantab_ele->current_key = 0;
+		}
+
+		/* return here, so the update and cleanup above is done in every case */
+		if (found == TRUE) {
+			switch (amitab_ele->header.attrType) {
+			case 'i':
+				recid.pagenum = inod.couple->recid.pagenum;
+				recid.recnum = inod.couple->recid.recnum;
+				break;
+			case 'f':
+				recid.pagenum = inod.couple->recid.pagenum;
+				recid.recnum = inod.couple->recid.recnum;
+				break;
+			case 'c':
+				recid.pagenum = inod.couple->recid.pagenum;
+				recid.recnum = inod.couple->recid.recnum;
+			break;
+			}
+		}
+		return recid;
+	}
+
+	error = PF_UnpinPage(amitab_ele->fd, amscantab_ele->current_page, 0);
+	if(error != PFE_OK) PF_ErrorHandler(error);
+
+	recid.recnum = AME_EOF;
+	recid.pagenum = AME_EOF;
+
+	return recid;
 }
 
-int AM_CloseIndexScan(int scanDesc){
+/*
+ *   int     scanDesc;           scan descriptor of an index
+ *
+ * This function terminates an index scan and disposes of the scan state information. It returns AME_OK 
+ * if the scan is successfully closed, and an AM error code otherwise.
+ *
+ * Dev: Patric
+ */
+int AM_CloseIndexScan(int scanDesc) {
+	AMscantab_ele* amscantab_ele;
+
+	if (scanDesc < 0 ||  (scanDesc >= AMscantab_length && AMscantab_length !=0)) return AME_INVALIDSCANDESC;
+
+	amscantab_ele = AMscantab + scanDesc;
+
+	if (amscantab_ele->valid == FALSE) return AME_SCANNOTOPEN; 
+
+	/* done similar to the closeScan in HF. is this procedure not needed? */
+	if (scanDesc == AMscantab_length - 1) { /* if last scan in the table */
+		if (AMscantab_length > 0) AMscantab_length--;
+		while( (AMscantab_length > 0) && ((AMscantab + AMscantab_length - 1)->valid == FALSE)) {
+			AMscantab_length--; /* delete all following scan with valid == FALSE */
+		}
+	}
+
 	return AME_OK;
 }
 

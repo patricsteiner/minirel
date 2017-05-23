@@ -31,6 +31,19 @@ typedef struct AMitab_ele{
 
 
 
+typedef struct AMscantab_ele{
+	bool_t  valid; 		       /* set to TRUE when index is being scanned*/
+	int     AMfd;              /* AM file descriptor */
+	int     current_page;      /* the current page (node) that is being scanned. -1 if EOF */
+	int     current_key;	   /* current key position of the scan (next one to be scanned) */
+	int 	current_num_keys;  /* number of keys in current node */
+	int     op;                /* operator for comparison*/
+    char    value[255];        /* value for comparison (or null) , size max == 255*/
+} AMscantab_ele;
+
+
+
+
 
 /* Type representing a node in a B+tree.
  * Same type for leaves and internal node.
@@ -154,16 +167,6 @@ Each page is a node (starting from page 2)
 #define AME_ATTRLENGTH			(-28) /* Invalid attribute length */
 #define AME_ATTROFFSET   		(-29) /* Invalid attribute offset */
 #define AME_OPERATOR			(-30) /* Invalid Operator in file scan */
-
-
-
-
-
-
-
-
-
-
-
+#define AME_SCANNOTOPEN         (-31)
 
 #endif 
