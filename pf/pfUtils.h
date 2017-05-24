@@ -25,8 +25,9 @@ typedef struct PFftab_ele{
 /*	More errors used for PF layer                                                                */
 /**********************************************************************************************/
 
-#define PFE_FILENOTEXISTS	-50
-#define PFE_FILENOTINTAB	-51
+#define PFE_FILENOTEXISTS	(-50)
+#define PFE_FILENOTINTAB	(-51)
+#define PFE_NULLARG	        (-52)
 
 
 

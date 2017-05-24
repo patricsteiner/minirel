@@ -102,7 +102,7 @@ int lru_remove(LRU* lru,BFpage** victim){
 		
 	     pt=pt->prevpage;
 	}while(pt!=NULL); /*stop the loop after the tail*/
-	
+
 	return BFE_PAGENOTINBUF; /* if NULL is returned then the list is empty (first condition check, or after scanning all list: no page can be choose as a victim*/
 }
 
@@ -114,11 +114,11 @@ void lru_print(LRU* lru){
 		return;
 	}
 	printf("\nThere are %d pages in the LRU list \n\n ", lru->number_of_page);
-	printf("Data\t\tDirty flag\t\tpin\t\tFd - page number\n\n");
+	printf("Dirty flag\t\tpin\t\tFd - page number\n\n");
 	pt = lru->head;
 	printf("\n");
 	do{
-             printf("%s\t\t%d\t\t%d\t\t%d\t%d\n", pt->fpage.pagebuf, pt->dirty, pt->count, pt->fd, pt->pagenum);
+             printf("\t%d\t\t%d\t\t%d\t%d\n", pt->dirty, pt->count, pt->fd, pt->pagenum);
 
 	     pt=pt->nextpage;
 	}while(pt!=NULL); /*stop the loop after the tail*/
@@ -148,6 +148,7 @@ int lru_mtu(LRU* lru, BFpage* mtu_page){ /*this mtu_page (considered already in 
 			mtu_page->nextpage=lru->head;
 			lru->head->prevpage=mtu_page;
 			lru->head=mtu_page;
+			lru->head->prevpage=NULL;
 			
 		}
 		else{
@@ -223,7 +224,7 @@ BFpage* fl_give_one(Freelist* fl){
 int fl_add(Freelist* fl, BFpage* bpage){
 	if (fl == NULL || bpage == NULL) { return 4; }
 	if (fl->size >= fl->max_size) {
-		printf("\nFL ERROR : Max Size reached");
+		/*printf("\nFL ERROR : Max Size reached");*/
 		return 3;
 	}
 
@@ -232,10 +233,11 @@ int fl_add(Freelist* fl, BFpage* bpage){
 	bpage->count = 0;
 	bpage->pagenum = 0;
 	bpage->fd = 0;
-	bpage->prevpage = NULL;
+	
 
 	/*Adding it at the beginning of the freelist*/
 	bpage->nextpage = fl->head;
+	bpage->prevpage=NULL;
 	fl->head = bpage;
 	fl->size += 1;
 		
@@ -438,7 +440,7 @@ void ht_print(Hashtable* ht) {
 	/*printf("-------------------- begin content of hashtable --------------------\n");*/
 	for (i = 0; i < ht->size; i++) {
 		BFhash_entry* e = ht->entries[i];
-		printf("Bucket [%d]: ", i);
+		printf("Bucket [%d]: ", (int) i);
 		while (e != NULL) {
 			printf("(fd %d, pagenum %d) ",e->fd, e->pagenum);
 			e = e->nextentry;

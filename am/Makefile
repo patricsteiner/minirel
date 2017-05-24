@@ -1,37 +1,30 @@
-# Makefile for PF layer
-LIB	= pf
+# Makefile for AM layer
+LIB	= am
 INCDIR	= ${MINIREL_HOME}/h
 INCS	= 
-SRCS	= pf.c 
-TESTS	= pftest.c
+SRCS	= am.c
+TESTS	= amtest.c
 OBJS	= ${SRCS:.c=.o}
-LIBS	= lib${LIB}.a ../bf/libbf.a
+LIBS	= lib${LIB}.a ../hf/libhf.a ../pf/libpf.a ../bf/libbf.a
 
 #############################################################################
 # This macro definition can be overwritten by command-line definitions.
 CC	= gcc
-CFLAGS	= -g -ansi -pedantic 
-
+CFLAGS	= -g -ansi -pedantic
 #CFLAGS	= -O -ansi -pedantic
 #############################################################################
 
 all: lib${LIB}.a ${LIB}test
 
-lib${LIB}.a:$(OBJS)
+${LIB}test: ${LIB}test.o lib${LIB}.a
+	$(CC) $(CFLAGS) -o $@ $< ${LIBS} -lm
+
+lib${LIB}.a: $(OBJS)
 	ar cr lib${LIB}.a $(OBJS)
 	ranlib lib${LIB}.a
-
-${LIB}test: ${LIB}test.o ${LIBS}
-	$(CC) $(CFLAGS) -o $@ $< ${LIBS}
-
-$(OBJS): ${INCS}
 
 clean:
 	rm -f lib${LIB}.a *.o ${LIB}test *.bak *~
 
 .c.o:; $(CC) $(CFLAGS) -c $< -I. -I$(INCDIR)
-
-test:
-	$(CC) $(CFLAGS) -o pftestPerso $(SRCS) pftestPerso.c ../bf/bf.c ../bf/bfUtils.c -I. -I$(INCDIR)
-
 

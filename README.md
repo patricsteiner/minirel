@@ -37,11 +37,53 @@ One point worth mentioning though is, that for every file created in PF layer, i
 Consequently each file has always at least one page (pagenumber 0).
 
 
-## Heap File LAyer
-TODO
+## Heap File Layer
+
+### File organization
+Each file is now composed of the following pages :
+- Page 0 : Page File header, stores the total number of pages in the file
+- Page 1 : Heap File header, stores the record size, the number of records per page, the number of pages in the file (at least 2), the number of free pages in the file and a page directory (cf. **Page Directory**)
+- Page 2 to n : Data pages, each of which has a bitmap at the start that indicates the number occupation of slots and the total nuber of slots afterwards. The rest of the page is used for actual data.
+
+### Page Directory
+To insert an entry without accessing all the pages sequentially, we created a page directory. It must keep track of data pages that still have some free slots. In order to fulfill its mission, we created an array that tells if a page is full or not, avoiding to retrieve pages that are full.
+
+There are `PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char)` pages that can be stored on the header page to retrieve data.
+To avoid a size restriction, once this array is full, we add another header page instead of a data page at index `PF_PAGE_SIZE - 4*sizeof(int) - sizeof(char) + 2`.
+
+### Datapages
+We use the unpacked page format to handle records in pages. The first bytes of each datapage represent a bitmap that indicates which slots in the page are full (1) and whcih are empty (0). After the bitmap, there is an integer (4 bytes) that indicates the total amount of slots in the datapage. After this integer, the actual data starts.
+
+**Example:** 
+
+Bitmap:	1011 0100	0000 0000	
+
+Occuped slots :  4 
+
+Data : 
+
+| record | empty | record | record | empty | record | empty | empty |empty | empty | empty | empty | empty | empty | empty | empty |
+
+#### Bitmap
+The bitmap size is always a multiple of 8, since we do not have any datatype that is smaller than char (8 bytes). So in worst-case, 7 bits are wasted.
+To calculate the size (amount of bytes) of the bitmap, we need to know the number of records that are stored in a datapage.
+Then we simply divide this number by 8 and add 1 if there is a remainder. `int HF_GetBytesInBitmap(int records_per_page)` can be used for this.
+
+### Finding records (scanning a heap file)
+To find records that match a specific condition, a filescan must be initiated by calling `int HF_OpenFileScan(int hffd, char attrType, int attrLength, int attrOffset, int op, char *value)`. This function will create a new entry in the scantable that keeps track of the position of the currently scanned record as well as all relevant data to the scan, such as heapfile descriptor, comparison attributes and a flag that indicates if the scan is currently running. After setting up a scan, it can be executed by calling `RECID HF_FindNextRec(int scanDesc, char *record)`, which just iterates through the records looking for items that match the condition that has been set in the filescan. After finding the results, when the filescan is not needed anymore, it must be closed with the function `int	HF_CloseFileScan(int scanDesc)`.
 
 ## Access Method Layer
-TODO
+The AM Layer is on the same architectural level as the the HF Layer, right above the PF Layer. Its purpose is to provide methods to access data in an efficient way, namely by using B+Tree indexes.
+
+### B+Tree Index representation
+To store an index on the disk, we simply make use of the underlying PF Layer functions, so IO operations for an index are done using the functions of a paged file.
+
+### Finding records (scanning the index)
+Finding records by given criteria works similar to finding records in the heap file. The main difference is, that instead of sequentially scanning the whole file and compare every single record to the given condition, we can make use of the order of items in a B+Tree and thus access items in a more efficient manner.
+To open a scan, the function `int AM_OpenIndexScan(int fileDesc, int op, char *value)` has to be used, which sets up an entry in the index scantable. The entries in this table hold all necessary information to find records by the given criteria as well as file names and descriptors of the paged file that stores the index and the file that contains the effective data. Similarly to the HF Layer, `RECID AM_FindNextEntry(int scanDesc)` is used to find an entry that satisfied the given condition and `int AM_CloseIndexScan(int scanDesc)` is used to clean up at the end.
+
+### Walking down the index to find the right node
+To find a leaf node to start scanning, given a value, we created the function int AM_FindLeaf(int idesc, char* value, int* tab). This function finds its way through the B+Tree index to the closest value and returns the key position left to the found value. The out parameter tab is used to get the path from the found leaf node all the way up to the root, so that this information can be used further.
 
 ## Frontend Layer
 TODO

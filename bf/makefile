@@ -3,7 +3,7 @@ LIB	= bf
 INCDIR	= ${MINIREL_HOME}/h
 INCS	= 
 SRCS	= bf.c bfUtils.c
-TESTS	= bftest.c
+TESTS	= bftest.c 
 OBJS	= ${SRCS:.c=.o}
 LIBS	= lib${LIB}.a
 
@@ -29,3 +29,6 @@ clean:
 	rm -f lib${LIB}.a *.o ${LIB}test *.bak *~
 
 .c.o:; $(CC) $(CFLAGS) -c $< -I. -I$(INCDIR)
+
+test:
+	$(CC) $(CFLAGS) -o bftestPerso $(SRCS) bftestPerso.c -I. -I$(INCDIR)

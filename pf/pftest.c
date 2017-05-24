@@ -30,7 +30,7 @@ void writefile(char *fname)
 	exit(1);
     }
     printf("\n******** %s opened for write ***********\n",fname);
-
+    PF_PrintTable();
     for (i=0; i < 2 * BF_MAX_BUFS; i++){
     	if ((error = PF_AllocPage(fd,&pagenum,&buf))!= PFE_OK){
             printf("PF_AllocPage fails (i=%d)\n",i);
@@ -56,13 +56,15 @@ void writefile(char *fname)
     	}
 
     }
-
+    PF_PrintTable();
     /* close the file */
     if ((error = PF_CloseFile(fd))!= PFE_OK){
 	   PF_PrintError("close file1");
        printf("%d\n", error);
 	exit(1);
     }
+
+    PF_PrintTable();
 
 }
 
@@ -174,12 +176,12 @@ void testpf1(void)
     sprintf(command, "ls -al %s", FILE1);
     system(command);
 
-/*
+
     if (PF_DestroyFile(FILE1)!= PFE_OK){
         PF_PrintError(FILE1);
         exit(1);
     }
-*/
+
 }
 
 main()

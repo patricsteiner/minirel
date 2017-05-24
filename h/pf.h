@@ -19,7 +19,7 @@ int  PF_DestroyFile	(char *filename);
 int  PF_OpenFile	(char *filename);
 int  PF_CloseFile	(int fd);
 int  PF_AllocPage	(int fd, int *pagenum, char **pagebuf);
-int  PF_GetFirstPage	(int fd, int *pagenum, char **pagebuf);
+int  PF_GetFirstPage(int fd, int *pagenum, char **pagebuf);
 int  PF_GetNextPage	(int fd, int *pagenum, char **pagebuf);
 int  PF_GetThisPage	(int fd, int pagenum, char **pagebuf);
 int  PF_DirtyPage	(int fd, int pagenum);

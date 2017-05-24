@@ -168,14 +168,14 @@ void printfile(char *fname)
     }
 
     for(i=0; (nbytes=read(unixfd,&fpage,sizeof(PFpage)))>0 ;i++) {
-	if (nbytes != sizeof(PFpage)) {
-		printf("read failed: %s, %d",fname,i);
-		exit(-1);
-	}
+    	if (nbytes != sizeof(PFpage)) {
+    		printf("read failed: %s, %d",fname,i);
+    		exit(-1);
+    	}
 
-	sscanf((char*)&fpage,"%4d%4d",&fd,&pagenum);
-	printf("values from disk page %d: %d %d\n",i,fd,pagenum);
-	fflush(stdout);
+    	sscanf((char*)&fpage,"%4d%4d",&fd,&pagenum);
+    	printf("values from disk page %d: %d %d\n",i,fd,pagenum);
+    	fflush(stdout);
     }
 
     printf("\n ********** eof reached **********\n");
