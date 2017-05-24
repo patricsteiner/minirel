@@ -218,35 +218,37 @@ int AM_CheckPointer(int pos, int fanout, char* value, char attrType, int attrLen
               /* fill the struct using offset and cast operations*/
               memcpy((int*)&inod.num_keys, (char*) (pagebuf+OffsetNodeNumKeys ), sizeof(int));
               memcpy((int*)&inod.last_pt, (char*) (pagebuf+OffsetNodeLastPointer), sizeof(int));
-              inod.couple=(icouple *)pagebuf+OffsetNodeCouple ;
+        
               memcpy((int*) &ikey,(char*) (pagebuf+OffsetNodeCouple+pos*(sizeof(int)+attrLength)+sizeof(int)),  attrLength);
+              memcpy((int*) &pagenum,(pagebuf+OffsetNodeCouple+pos*(sizeof(int)+attrLength)),  sizeof(int));
                 tmp_ivalue=*((int*)value);
                 
-                printf("\n node key %d, value %d \n", ikey, tmp_ivalue); 
-               if( pos<(inod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
-                  if( tmp_ivalue<ikey ) return inod.couple[pos].pagenum;
+                printf("\n node key %d, value %d , la tentative %d\n", ikey, tmp_ivalue,  inod.last_pt); 
+               if( pos<(inod.num_keys-1)){ 
+                  if( tmp_ivalue<ikey ) return pagenum;
                   return 0;
                }
                else if( pos==(inod.num_keys-1)) {
-                   if( tmp_ivalue<ikey) return inod.couple[pos].pagenum;
+                   if( tmp_ivalue<ikey) return pagenum;
                    return inod.last_pt;
                }
                else {
                 printf( "DEBUG: pb with fanout or position given \n");
-                return -1;
+                exit( -1);
                }
                break;
 
         case 'c':  /* fill the struct using offsets */
               memcpy((int*)&cnod.num_keys, (char*) (pagebuf+OffsetNodeNumKeys ), sizeof(int));
               memcpy((int*)&cnod.last_pt, (char*) (pagebuf+OffsetNodeLastPointer), sizeof(int));
-             
+              
+              memcpy((int*) &pagenum,(pagebuf+OffsetNodeCouple+pos*(sizeof(int)+attrLength)),  sizeof(int));
               memcpy((char*) &key,(char*) (pagebuf+OffsetNodeCouple+pos*(sizeof(int)+attrLength)+sizeof(int)),  attrLength);
            
               
               if( pos<(cnod.num_keys-1)){ 
                 if( strncmp((char*) value, key,  attrLength) <0) {
-                	 memcpy((int*) &pagenum,(pagebuf+OffsetNodeCouple+pos*(sizeof(int)+attrLength)),  sizeof(int));
+
                 	 return pagenum;
                 	 }
                 	 return -1;
@@ -254,7 +256,7 @@ int AM_CheckPointer(int pos, int fanout, char* value, char attrType, int attrLen
                else if( pos==(cnod.num_keys-1)) {
                	  
                    if(strncmp((char*) value,(char*) key,  attrLength) >=0) return cnod.last_pt;
-              	   memcpy((int*) &pagenum,(pagebuf+OffsetNodeCouple+pos*(sizeof(int)+attrLength)),  sizeof(int));
+
                    return pagenum;
                }
                else {
@@ -266,20 +268,24 @@ int AM_CheckPointer(int pos, int fanout, char* value, char attrType, int attrLen
         case 'f':  /* fill the struct using offset and cast operations */
               memcpy((int*)&fnod.num_keys, (char*) (pagebuf+sizeof(bool_t)), sizeof(int));
               memcpy((int*)&fnod.last_pt, (char*) (pagebuf+OffsetNodeLastPointer), sizeof(int));
-              fnod.couple=(fcouple *)pagebuf+OffsetNodeCouple;
-            
+         
+              
+               memcpy((int*) &pagenum,(pagebuf+OffsetNodeCouple+pos*(sizeof(int)+attrLength)),  sizeof(int));
+              memcpy((float*) &fkey,(char*) (pagebuf+OffsetNodeCouple+pos*(sizeof(int)+attrLength)+sizeof(int)),  attrLength);
+              tmp_fvalue=*((float*)value);
+            	/*printf("\n node key %f, value %f , la tentative %d\n", fkey, tmp_fvalue,  inod.last_pt);*/
             
               if( pos<(fnod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
-                if(  fnod.couple[pos].key > *((float*)value) ) return fnod.couple[pos].pagenum;
+                if( tmp_fvalue<fkey ) return pagenum;
                 return -1;
                }
                else if(pos==(fnod.num_keys-1)) {
-                   if(  fnod.couple[pos].key <=*((float*)value) ) return fnod.last_pt;
-                   return fnod.couple[pos].pagenum;
+                   if(  tmp_fvalue>=fkey ) return fnod.last_pt;
+                   return pagenum;
                }
                else {
-                printf( "DEBUG: pb with fanout or position given \n");
-                return -1;
+                printf( "DEBUG: pb with a too high position given \n");
+                exit( -1);
                }
                break;
         default:
@@ -315,18 +321,18 @@ int AM_KeyPos(int pos, int fanout, char* value, char attrType, int attrLength, c
 			  tmp_ivalue=*((int*)value);
 			  printf("la key ileaf %d et value %d \n", ikey,tmp_ivalue);
 			   if( pos<(inod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
-               				   if( tmp_ivalue<ikey ) return pos;
+               				   if( tmp_ivalue<=ikey ) return pos;
              				     return -1;
              			  
 				return -1;
 			   }
 			   else if( pos==(inod.num_keys-1)) {
-			   	if( tmp_ivalue<ikey) return pos;
+			   	if( tmp_ivalue<=ikey) return pos;
 				return pos+1;
 			   }
 			   else {
-				printf( "DEBUG: pb with fanout or position given \n");
-				return -1;
+				printf( "DEBUG: pb with fanout or position given ooo \n");
+				exit( -1);
 			   }
 			   break;
 
@@ -349,27 +355,29 @@ int AM_KeyPos(int pos, int fanout, char* value, char attrType, int attrLength, c
 			   }
 			   else {
 				printf( "DEBUG: pb with fanout or position given \n");
-				return -1;
+				exit( -1);
 			   }
 			   break;
 
 		case 'f':  /* fill the struct using offset and cast operations */
 			  memcpy((int*)&fnod.num_keys, (char*) (pagebuf+OffsetLeafNumKeys), sizeof(int));
 			  fnod.couple=(fcoupleLeaf*)(pagebuf+OffsetLeafCouple);
-			  
+			   memcpy((float*) &fkey,(char*) (pagebuf+OffsetLeafCouple+pos*(2*sizeof(int)+attrLength)+2*sizeof(int)),  attrLength);
+			  tmp_fvalue=*((float*)value);
+			 /* printf("la key fleaf %f et value %f \n", fkey,tmp_fvalue);*/
 			  if( pos<(fnod.num_keys-1)){ /* fanout -1 is the number of couple (pointer, key)*/
-				if(  fnod.couple[pos].key >= *((float*)value) ) {
+				if(  tmp_fvalue<=fkey ) {
 					return pos;
 				}
 				return -1;
 			   }
 			   else if(pos==(fnod.num_keys-1)) {
-			   	if(  fnod.couple[pos].key >=*((float*)value) ) return pos;
+			   	if(  tmp_fvalue<=fkey ) return pos;
 				return pos+1;
 			   }
 			   else {
 				printf( "DEBUG: pb with fanout or position given \n");
-				return -1;
+				exit(-1);
 			   }
 			   break;
 		default:
@@ -397,6 +405,7 @@ int AM_FindLeaf(int idesc, char* value, int* tab){
     pt=AMitab+idesc;
     
     tab[0]=pt->header.racine_page;
+    printf( "la page de la racine %d \n", pt->header.racine_page);
     if(tab[0]<=1) return AME_WRONGROOT;
     
     for(i=0; i<(pt->header.height_tree);i++){
@@ -415,7 +424,9 @@ int AM_FindLeaf(int idesc, char* value, int* tab){
             /* fanout = n ==> n-1 key */
                 while(pt_find==FALSE){ /*normally is sure to find a key, since even if value is greater than all key: the last pointer is taken*/
                     pagenum=AM_CheckPointer(j, pt->fanout,  value, pt->header.attrType, pt->header.attrLength, pagebuf);
+                   /* printf("pagenum %d, header num pages %d \n ", pagenum, pt->header.num_pages);*/
                     if (pagenum>0 && pt->header.num_pages>=pagenum){
+                    
                     tab[i+1]=pagenum;
                     pt_find=TRUE; }
                     else j++;/* the pointer to the child is found, let is go to the level below and get the child */
@@ -500,6 +511,7 @@ int AM_CreateIndex(char *fileName, int indexNo, char attrType, int attrLength, b
 
 	pt->header.height_tree = 0;
 	pt->header.nb_leaf = 0;
+	pt->header.num_pages=2;
 
 
 	error = PF_AllocPage(pt->fd, &pagenum, &headerbuf);
@@ -596,6 +608,7 @@ int AM_OpenIndex(char *fileName, int indexNo){
 	memcpy((int*) &pt->header.height_tree,(char*) (headerbuf + 2*sizeof(int) + sizeof(char)),  sizeof(int));
 	memcpy( (int*) &pt->header.nb_leaf,(char*) (headerbuf + 3*sizeof(int) + sizeof(char)), sizeof(int));
 	memcpy((int*) &pt->header.racine_page, (char*) (headerbuf + 4*sizeof(int) + sizeof(char)), sizeof(int));
+	
 	memcpy((int*) &pt->header.num_pages, (char*) (headerbuf + 5*sizeof(int) + sizeof(char)), sizeof(int));
 
 	pt->fanout = ( (PF_PAGE_SIZE ) - 2*sizeof(int) - sizeof(bool_t)) / (sizeof(int) + pt->header.attrLength) + 1;
@@ -624,7 +637,7 @@ int AM_CloseIndex(int fileDesc){
 	int i;
 	i=0;
 	
-	
+	printf("close index \n");
 
 	if (fileDesc < 0 || fileDesc >= AMitab_length) return AME_FD;
 	pt=AMitab + fileDesc ;
@@ -634,6 +647,7 @@ int AM_CloseIndex(int fileDesc){
 
 	/* check the header */
 	if (pt->dirty==TRUE){ /* header has to be written again */
+		printf("header is written, racine page %d \n", pt->header.racine_page);
 		error=PF_GetThisPage( pt->fd, 1, &headerbuf);
 		if(error!=PFE_OK)PF_ErrorHandler(error);
 
@@ -683,15 +697,169 @@ int AM_CloseIndex(int fileDesc){
 
 	return AME_OK;
 }
+/*
+	return the position of the couple which will be the first one in the new node of a split, not always the middle because of duplicate keys  */
+int AM_LeafSplitPos( char* pagebuf, int size,  int attrLength, char attrType){
+	/*use to get any type of node and leaf from a buffer page*/
+	ileaf inod;
+	fleaf fnod;
+	cleaf cnod;
+	
+	char* key;
+	char* key_1;
+	
+	int ikey;
+	int ikey_1;
+	
+	float fkey;
+	float fkey_1;
+	
+	int tmp_page;
+	
+	/* use in a loop to find all duplicate keys */
+	int i;
+	int pos;
+	pos=size/2;
+	i=0;
+	
+	switch(attrType){
+		case 'i': 
+			  /* fill the struct using offset and cast operations */
+			  memcpy((int*) &ikey,(char*) (pagebuf+(pos)*(2*sizeof(int)+attrLength)+2*sizeof(int)),  attrLength);
+			
+			 
+			  if( pos==size/2){ 
+			  	for(i=1;i<=size/2;i++){
+			  		memcpy((int*) &ikey_1,(char*) (pagebuf+(pos-i)*(2*sizeof(int)+attrLength)+2*sizeof(int)),  attrLength);		
+			  		printf("la key ileaf %d et key_1 %d , la pos de key_1 %d\n", ikey,ikey_1, (pos-i));
+					if(  ikey > ikey_1){
+						return pos-i+1;
+					}
+					if( ikey < ikey_1){
+						/* the middle is less than one preceding key ==>problem with the tree, can happen with string of different size */                     printf( "DEBUG: the middle is less than one preceding key ==>problem with the tree, cannot happen with int \n");
+						exit(-1);
+						
+					}
+				}
+				i=0;
+				/* the loop has been passed ==> duplicate keys from the beginning to the middle*/
+				/* now the split pos will be 0 (if node full of duplicated key) or a value >=(size/2)+1 since all the duplicate keys have to be in the same node and there is at least (size/2)+1 duplicate keys */
+				for(i=1;i<=size/2;i++){
+			  		memcpy((int*) &ikey_1,(char*) (pagebuf+pos*(2*sizeof(int)+attrLength)-i*(2*sizeof(int)+attrLength)+2*sizeof(int)),  attrLength);		
+					if( ikey < ikey_1 ){
+						return pos+i; /*minimum is pos+1 == size/2 +1*/
+					}
+					if( ikey > ikey_1 ){
+						/* the middle is greater than one following key ==>problem with the tree, can happen with string of different size */                     printf( "\n DEBUG: the middle is greater than one following key ==>problem with the tree, cannot happen with int, \n\n");
+						exit(-1);
+						
+					}
+				}
+				return 0; 
+				
+			   }
+			   else {
+				printf( "DEBUG: pos!=size/2 in AM_SplitPos \n");
+				return -1;
+			   }
+			   break;
+
+
+		case 'c':  /* fill the struct using offset and cast operations */
+			  
+			  memcpy((char*) key,(char*) (pagebuf+pos*(2*sizeof(int)+attrLength)+2*sizeof(int)),  attrLength);
+			    
+			
+			
+			  if( pos==size/2){ 
+			  	for(i=1;i<=size/2;i++){
+			  		memcpy((char*) key_1,(char*) (pagebuf+(pos-i)*(2*sizeof(int)+attrLength)+2*sizeof(int)),  attrLength);
+					if( strncmp((char*) key , key_1, attrLength)>0 ){
+						return pos-(i)+1;
+					}
+					if( strncmp((char*) key , key_1, attrLength)<0 ){
+						/* the middle is less than one preceding key ==>problem with the tree, can happen with string of different size */                     printf( "DEBUG: the middle is less than one preceding key ==>problem with the tree, can happen with string of different size \n");
+						return -1;
+						
+					}
+				}
+				i=0;
+				/* the loop has been passed ==> duplicate keys from the beginning to the middle*/
+				/* now the split pos will be 0 (if node full of duplicated key) or a value >=(size/2)+1 since all the duplicate keys have to be in the same node and there is at least (size/2)+1 duplicate keys */
+				for(i=1;i<=size/2;i++){
+			  		memcpy((char*) key_1,(char*) (pagebuf+(pos-i)*(2*sizeof(int)+attrLength)+2*sizeof(int)),  attrLength);
+					if( strncmp((char*) key , key_1, attrLength)<0 ){
+						return pos+i; /*minimum is pos+1 == size/2 +1*/
+					}
+					if( strncmp((char*) key , key_1, attrLength)>0 ){
+						/* the middle is greater than one following key ==>problem with the tree, can happen with string of different size */                     printf( "\n DEBUG: the middle is greater than one following key ==>problem with the tree, can happen with string of different size \n\n");
+						return pos+i;
+						
+					}
+				}
+				return 0; 
+				
+			   }
+			   else {
+				printf( "DEBUG: pos!=size/2 in AM_SplitPos \n");
+				return -1;
+			   }
+			   break;
+
+		case 'f':  /* fill the struct using offset and cast operations */
+			  
+			
+			   memcpy((float*) &fkey,(char*)(pagebuf+(pos)*(2*sizeof(int)+attrLength)+2*sizeof(int)),  attrLength);
+			 if( pos==size/2){ 
+			  	for(i=1;i<=size/2;i++){
+			  		memcpy((float*) &fkey_1,(char*) (pagebuf+(pos-i)*(2*sizeof(int)+attrLength)+2*sizeof(int)),  attrLength);		
+			  		
+					if(  fkey > fkey_1){
+						return pos-(i)+1;
+					}
+					if( fkey < fkey_1){
+						/* the middle is less than one preceding key ==>problem with the tree, can happen with string of different size */                     printf( "DEBUG: the middle is less than one preceding key ==>problem with the tree, cannot happen with float the key %f ,preceding key %f pos %d\n\n", fkey, fkey_1, pos-i);
+						exit(-1);
+						
+					}
+				}
+				i=0;
+				/* the loop has been passed ==> duplicate keys from the beginning to the middle*/
+				/* now the split pos will be 0 (if node full of duplicated key) or a value >=(size/2)+1 since all the duplicate keys have to be in the same node and there is at least (size/2)+1 duplicate keys */
+				for(i=1;i<=size/2;i++){
+			  		memcpy((float*) &fkey_1,(char*) (pagebuf+(pos-i)*(2*sizeof(int)+attrLength)+2*sizeof(int)),  attrLength);		
+					if( fkey < fkey_1 ){
+						return pos+i; /*minimum is pos+1 == size/2 +1*/
+					}
+					if( fkey > fkey_1 ){
+						/* the middle is greater than one following key ==>problem with the tree, can happen with string of different size */                     printf( "\n DEBUG: the middle is greater than one following key ==>problem with the tree, cannot happen with float \n\n");
+						exit(-1);
+						
+					}
+				}
+				return 0; 
+				
+			   }
+			   else {
+				printf( "DEBUG: pos!=size/2 in AM_SplitPos \n");
+				return -1;
+			   }
+			   break;
+		default:
+			
+			return AME_ATTRTYPE;
+	}
+}
 
 
 /* return the index where the leaf should be splitted 
  * the pagebuf contains only the couple
  */
-int split_leaf(char* pagebuf, int size, int attrLength, int attrType){
+int split_leaf(char* pagebuf, int size, int attrLength, char attrType){
 	int i, middle, couple_size;
 	int res;
 	bool_t found;
+	
 	middle = size / 2; /* more couple on the right */
 	couple_size = sizeof(RECID) + attrLength;
 
@@ -950,8 +1118,12 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 		memcpy((char*) (tempbuffer + couple_size*(pos+1)), (char*) (pagebuf + offset), couple_size*(num_keys - pos));
 	
 		/* Find the split index */
-		splitIndex = split_leaf(tempbuffer, num_keys, pt->header.attrLength, pt->header.attrType);
-
+		/*splitIndex = split_leaf(tempbuffer, num_keys, pt->header.attrLength, pt->header.attrType);*/
+		/*splitIndex = split_leaf(tempbuffer, num_keys, pt->header.attrLength, pt->header.attrType);*/
+		splitIndex = AM_LeafSplitPos(tempbuffer, num_keys, pt->header.attrLength, pt->header.attrType);
+		printf(" le retour split Pos %d \n", splitIndex);
+		
+		if(splitIndex==0) return AME_DUPLICATEKEY; /*node full of duplicate key, this case does not have to be handle */
 		/* Alloc a page for the new leaf*/
 		error = PF_AllocPage(pt->fd, &new_leaf_page, &new_leaf_buf);
 		if (error != PFE_OK)
@@ -1018,10 +1190,7 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 
 		printf("leaf %d splitted to leaf %d\n", leafNum, new_leaf_page);
 		printf("pushing the key up\n\n");
-		/*
-		print_page(fileDesc, new_leaf_page);
-		print_page(fileDesc, leafNum);
-		*/
+		
 		pt->header.nb_leaf++;
 		pt->header.num_pages++;
 		pt->dirty = TRUE;
@@ -1033,7 +1202,7 @@ int AM_InsertEntry(int fileDesc, char *value, RECID recId){
 		parent = 0;
 		/*lenvisited node = pt->header.height_tree
 		*/
-		printf("visitedNode : [ ");
+		
 		for (i = len_visitedNode; i>0; i--){
 			printf("%d ", visitedNode[len_visitedNode - i]);
 		}
@@ -1429,6 +1598,7 @@ int AM_OpenIndexScan(int AM_fd, int op, char *value){
 	tab = malloc(amitab_ele->header.height_tree * sizeof(int));
 	key = AM_FindLeaf(AM_fd, value, tab);
 	if (op == NE_OP) key = AM_FindLeaf(AM_fd, (char*) &val, tab); /* use val if NE_OP, to get leftmost leaf */
+	printf("key de départ %d et page de départ %d\n",key,tab[(amitab_ele->header.height_tree)-1]);
 	
 	amscantab_ele->current_page = tab[(amitab_ele->header.height_tree)-1];
 	amscantab_ele->current_key = key;
@@ -1502,20 +1672,20 @@ RECID AM_FindNextEntry(int scanDesc) {
 	if(error != PFE_OK) PF_ErrorHandler(error);
 
 	/* read num_keys and write it in scantab_ele */
-	memcpy((int*) &(amscantab_ele->current_num_keys), (int*) (pagebuf + sizeof(bool_t)), sizeof(int));
+	memcpy((int*) &(amscantab_ele->current_num_keys), (int*) (pagebuf+ OffsetLeafNumKeys), sizeof(int));
 
 	switch (amitab_ele->header.attrType) {
 		case 'i':
-			memcpy((int*) &(inod.num_keys), (int*) pagebuf + sizeof(bool_t), sizeof(int));
-			inod.couple = (icoupleLeaf*) (pagebuf + sizeof(bool_t) + 3*sizeof(int));
+			memcpy((int*) &(inod.num_keys), (int*) pagebuf + OffsetLeafNumKeys, sizeof(int));
+
 			break;
 		case 'f':
-			memcpy((int*) &(fnod.num_keys), (int*) pagebuf + sizeof(bool_t), sizeof(int));
-			fnod.couple = (fcoupleLeaf*) (pagebuf + sizeof(bool_t) +3*sizeof(int));
+			memcpy((int*) &(fnod.num_keys), (int*) pagebuf + OffsetLeafNumKeys, sizeof(int));
+			
 			break;
 		case 'c':
-			memcpy((int*) &(cnod.num_keys), (int*) pagebuf + sizeof(bool_t), sizeof(int));
-			cnod.couple = (ccoupleLeaf*) (pagebuf + sizeof(bool_t) +3*sizeof(int));
+			memcpy((int*) &(cnod.num_keys), (int*) pagebuf + OffsetLeafNumKeys, sizeof(int));
+			
 			break;
 	}
 
@@ -1523,28 +1693,28 @@ RECID AM_FindNextEntry(int scanDesc) {
 	direction = (amscantab_ele->op == LT_OP || amscantab_ele->op == LE_OP) ? -1 : 1;
 
 	/* while there is a next page (if there is none, it is set to LAST_PAGE resp. FIRST_PAGE = -1) */
-	while (amscantab_ele->current_page >= 0) {
+	while (amscantab_ele->current_page>=2 || amscantab_ele->current_page<=amitab_ele->header.num_pages) {
 		/* iterate through keys while there is a next key and we found no result */
 		while (found == FALSE && amscantab_ele->current_key > 0 && amscantab_ele->current_key < amscantab_ele->current_num_keys) {
 			/* compare and return if match */
 			switch (amitab_ele->header.attrType) {
 			case 'i':
 				/* get the the values to compare */
-				memcpy((int*)&i1, &(amscantab_ele->value), sizeof(int));
-				i2 = inod.couple[amscantab_ele->current_key].key;
+				i1=*((int*) amscantab_ele->value);
+				memcpy((int*) &i2,(char*) (pagebuf+OffsetLeafCouple+amscantab_ele->current_key*(2*sizeof(int)+amitab_ele->header.attrLength)+2*sizeof(int)),  amitab_ele->header.attrLength);
 				if (compareInt(i1, i2, amscantab_ele->op) == TRUE) found = TRUE;
 				amscantab_ele->current_key += direction;
 				break;
 			case 'f':
-				memcpy((float*) &f1,  &(amscantab_ele->value), sizeof(float));
-				f2 = fnod.couple[amscantab_ele->current_key].key;
+				f1=*((float*) amscantab_ele->value);
+				memcpy((float*) &f2,(char*) (pagebuf+OffsetLeafCouple+amscantab_ele->current_key*(2*sizeof(int)+amitab_ele->header.attrLength)+2*sizeof(int)),  amitab_ele->header.attrLength);			
+				printf("compared values %f %f \n",f1,f2);
 				if (compareFloat(f1, f2, amscantab_ele->op) == TRUE) found = TRUE;
 				amscantab_ele->current_key += direction;
 				break;
 			case 'c':
 				memcpy((char*) &c1, (char*)&(amscantab_ele->value), amitab_ele->header.attrLength);
-				/* TODO: next line causes segfault. maybe bullshit is copied to current_key? */
-				c2 = cnod.couple + amscantab_ele->current_key * (sizeof(RECID) + amitab_ele->header.attrLength) + sizeof(int);
+				memcpy((char*) &c2,(char*) (pagebuf+OffsetLeafCouple+amscantab_ele->current_key*(2*sizeof(int)+amitab_ele->header.attrLength)+2*sizeof(int)),  amitab_ele->header.attrLength);
 				if (compareChars(c1, c2, amscantab_ele->op, amitab_ele->header.attrLength) == TRUE) found = TRUE;
 				amscantab_ele->current_key += direction;
 				break;
@@ -1552,6 +1722,13 @@ RECID AM_FindNextEntry(int scanDesc) {
 			
 		}
 		if(found==FALSE){
+			
+			if(amscantab_ele->op == EQ_OP ){
+				error = PF_UnpinPage(amitab_ele->fd, amscantab_ele->current_page, 0);
+				if(error != PFE_OK) PF_ErrorHandler(error);
+				 break;/*for eq-op scan the record which can are in the page given in openscan and no one else, because duplicate key are only in one leaf */
+			}
+			printf("j'unpin alors qu'il faut pas ");
 			tmp_page = amscantab_ele->current_page;
 			/* update amscantab_ele by reading next/prev page. the next/prev page will be -1 if its nonexistent. */
 			if (direction < 0) {
@@ -1562,6 +1739,8 @@ RECID AM_FindNextEntry(int scanDesc) {
 		
 			error = PF_UnpinPage(amitab_ele->fd, tmp_page, 0);
 			if(error != PFE_OK) PF_ErrorHandler(error);
+			
+			printf("get page is %d", amscantab_ele->current_page);
 			error = PF_GetThisPage(amitab_ele->fd, amscantab_ele->current_page, &pagebuf);
 			if(error != PFE_OK) PF_ErrorHandler(error);
 		
@@ -1578,13 +1757,16 @@ RECID AM_FindNextEntry(int scanDesc) {
 		/* return here, so the update and cleanup above is done in every case */
 		else{
 			/*unpin the current page before returning */
+			printf(" j'unpin la page %d \n" , amscantab_ele->current_page);
 			error = PF_UnpinPage(amitab_ele->fd, amscantab_ele->current_page, 0);
 			if(error != PFE_OK) PF_ErrorHandler(error);
-			
-			switch (amitab_ele->header.attrType) {
+			memcpy((int*) &recid.pagenum,(char*) (pagebuf+OffsetLeafCouple+(amscantab_ele->current_key-1)*(2*sizeof(int)+amitab_ele->header.attrLength)),  sizeof(int));
+				memcpy((int*) &recid.recnum,(char*) (pagebuf+OffsetLeafCouple+(amscantab_ele->current_key-1)*(2*sizeof(int)+amitab_ele->header.attrLength)+sizeof(int)),  sizeof(int));
+				return recid;
+			/*switch (amitab_ele->header.attrType) {
 			case 'i':
-				recid.pagenum = inod.couple->recid.pagenum;
-				recid.recnum = inod.couple->recid.recnum;
+				memcpy((int*) &recid.pagenum,(char*) (pagebuf+OffsetLeafCouple+amscantab_ele->current_key*(2*sizeof(int)+amitab_ele->header.attrLength)),  sizeof(int));
+				memcpy((int*) &recid.recnum,(char*) (pagebuf+OffsetLeafCouple+amscantab_ele->current_key*(2*sizeof(int)+amitab_ele->header.attrLength)),  sizeof(int));
 				return recid;
 				break;
 			case 'f':
@@ -1597,7 +1779,7 @@ RECID AM_FindNextEntry(int scanDesc) {
 				recid.recnum = inod.couple->recid.recnum;
 				return recid;
 			break;
-			}
+			}*/
 		}
 		
 	}
@@ -1606,7 +1788,7 @@ RECID AM_FindNextEntry(int scanDesc) {
 
 	recid.recnum = AME_EOF;
 	recid.pagenum = AME_EOF;
-
+	AMerrno=AME_EOF;
 	return recid;
 }
 
