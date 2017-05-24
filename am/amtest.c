@@ -17,9 +17,10 @@
 #include "am.h"
 
 #define FILE1       "testrel"
-#define STRSIZE     4
+#define STRSIZE     32
 #define TOTALTESTS  3
 
+int AMerrno;
 /* prototypes for all of the test functions */
 
 void amtest1(void);
@@ -27,7 +28,6 @@ void amtest2(void);
 void amtest3(void);
 void cleanup(void);
 
-int AMerrno; /*ADDED BY ANTOINE FOR COMPLILING */
 /* array of pointers to all of the test functions (used by main) */
 
 void (*tests[])() = {amtest1, amtest2, amtest3, cleanup};
@@ -42,13 +42,13 @@ void (*tests[])() = {amtest1, amtest2, amtest3, cleanup};
 void amtest1()
 {
    int value,id, am_fd, hf_fd;
-   int string_val;
+   char string_val[STRSIZE];
    char files_to_delete[80];
    RECID recid;
 
    /* To avoid uninitialized bytes error reported by valgrind */
    /* Bongki, Mar/13/2011 */
-   /*memset(string_val,'\0',STRSIZE);*/
+   memset(string_val,'\0',STRSIZE);
 
    printf("***** start amtest1 *****\n");
    /* making sure FILE1 index is not present */
@@ -63,49 +63,43 @@ void amtest1()
 
    /* Opening HF file so that below we can insert records inmediately */
    if ((hf_fd = HF_OpenFile(FILE1)) < 0) {
-	
       HF_PrintError("Problem opening");
       exit(1);
    }
 
-   if (AM_CreateIndex(FILE1, 1, INT_TYPE, STRSIZE, FALSE) != AME_OK) {
+   if (AM_CreateIndex(FILE1, 1, STRING_TYPE, STRSIZE, FALSE) != AME_OK) {
       AM_PrintError("Problem creating");
       exit(1);
    }
    if ((am_fd = AM_OpenIndex(FILE1,1)) < 0) {
-	
       AM_PrintError("Problem opening");
       exit(1);
    }
-   printf("bool t taille %d\n", sizeof(bool_t) );
-   AM_PrintTable();
-   /*Inserting value in the HF file and the B+ Tree  */
-      value = 10;
-s
-      while (value < 700)
 
+   /* Inserting value in the HF file and the B+ Tree */
+      value = 10;
+      while (value < 100)
       {
-         string_val=value;
-         /* Notice the recid value being inserted is trash.    */ 
+         sprintf(string_val, "entry%d", value);
+         /* Notice the recid value being inserted is trash.    */
          /* The (char *)& is unnecessary in AM_InsertEntry     */
          /* because in this case string_val is (char *)        */
          /* but I am putting it here to emphasize what to pass */
          /* in other cases (int and float value                */
 
          /* Inserting the record in the HF file */
-         recid = HF_InsertRec(hf_fd,(char*) &string_val);
+         recid = HF_InsertRec(hf_fd, string_val);
          if (!HF_ValidRecId(hf_fd,recid)){
             HF_PrintError("Problem inserting record in HF file");
             exit(1);
          }
-         printf("Inserting recid/key { (%d , %d) , %d }\n", recid.pagenum, recid.recnum, string_val);
+     
          /* Inserting the record in the B+ Tree */
-         if (AM_InsertEntry(am_fd, (char *) &string_val, recid) != AME_OK) {
+         if (AM_InsertEntry(am_fd, (char *)&string_val, recid) != AME_OK) {
              AM_PrintError("Problem Inserting rec");
              exit(1);
          }
-         /*print_page(am_fd, 2);*/
-         value = value + 2;
+          value = value + 2;
       }
 
    if (HF_CloseFile(hf_fd) != AME_OK){
@@ -114,10 +108,6 @@ s
    }
 
    if (AM_CloseIndex(am_fd) != AME_OK) {
-      AM_PrintError("Problem Closing");
-      exit(1);
-   }
-	 if (AM_DestroyIndex(FILE1,1) != AME_OK) {
       AM_PrintError("Problem Closing");
       exit(1);
    }
@@ -171,9 +161,8 @@ void amtest2()
       /* clearing retrieved_value  */
       memset(retrieved_value, ' ', STRSIZE);
       recid = AM_FindNextEntry(sd);
-      if (!HF_ValidRecId(hf_fd,recid)){
+      if (!HF_ValidRecId(hf_fd,recid)) 
          if (AMerrno == AME_EOF) break; /*Out of records satisfying predicate */
-      }
       else
       {
          AM_PrintError("Problem finding next entry");
@@ -249,9 +238,8 @@ void amtest3()
       /* clearing retrieved_value  */
       memset(retrieved_value, ' ', STRSIZE);
       recid = AM_FindNextEntry(sd);
-      if (!HF_ValidRecId(hf_fd,recid)){ 
+      if (!HF_ValidRecId(hf_fd,recid)) 
          if (AMerrno == AME_EOF) break; /*Out of records satisfying predicate */
-      }
       else
       {
          AM_PrintError("Problem finding next entry");
@@ -267,7 +255,7 @@ void amtest3()
       /* are less that "entry70". Notice we are NOT deleting the */
       /* entry from the HF file.                                 */ 
       
-      if (strcmp(retrieved_value, "entry70") < 0){
+      if (strncmp(retrieved_value, "entry70",STRSIZE) < 0){
          if (AM_DeleteEntry(am_fd, retrieved_value, recid) != AME_OK) {
             AM_PrintError("Problem deleting entry");
             exit(1);
