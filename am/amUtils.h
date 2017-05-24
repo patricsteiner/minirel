@@ -1,11 +1,24 @@
 #ifndef __AMUTILS_H__
 #define __AMUTILS_H__
 
+
+#include "minirel.h"
+
+
+#define OffsetNodeNumKeys (sizeof(bool_t)) 
+#define OffsetNodeLastPointer (sizeof(bool_t)+sizeof(int)) 
+#define OffsetNodeCouple (sizeof(bool_t)+2*sizeof(int)) 
+
+#define OffsetLeafNumKeys (sizeof(bool_t)) 
+#define OffsetLeafPrevious (sizeof(bool_t)+sizeof(int)) 
+#define OffsetLeafNext (sizeof(bool_t)+2*sizeof(int)) 
+#define OffsetLeafCouple (sizeof(bool_t)+3*sizeof(int))
+
 #define ROOT -1
 #define FIRST_LEAF -1
 #define LAST_LEAF -1
 
-#include "minirel.h"
+
 
 typedef struct AMHeader{
     int     indexNo;           /* id of this index for the file   */
